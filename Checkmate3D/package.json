@@ -12,6 +12,14 @@
     "vite": "^6.0.5"
   },
   "dependencies": {
-    "three": "^0.172.0"
-  }
+    "@types/three": "^0.172.0",
+    "gsap": "^3.12.7",
+    "three": "^0.172.0",
+    "three-orbitcontrols": "^2.110.2"
+  },
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
 }

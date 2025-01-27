@@ -1,7 +1,5 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
-import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -67,9 +65,23 @@ const createChessboard = () => {
 createChessboard();
 scene.background = new THREE.Color(0x888888);
 
-// Pieces Configuration
 const pieces = [];
 let selectedPiece = null;
+const paths = [];
+
+// Helper to create a highlight for a path
+const createPathHighlight = (start, end) => {
+  const geometry = new THREE.BufferGeometry();
+  const vertices = new Float32Array([
+    start.x, 0.05, start.z, // Starting point
+    end.x, 0.05, end.z,     // Ending point
+  ]);
+  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  const material = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+  const pathLine = new THREE.Line(geometry, material);
+  scene.add(pathLine);
+  paths.push(pathLine);
+};
 
 const createPiece = (type, color, position) => {
   let geometry;
@@ -110,7 +122,7 @@ const createPiece = (type, color, position) => {
 };
 
 const placePieces = () => {
-  // White 
+  // White pieces
   createPiece('rook', 'white', { x: -3.5, z: -3.5 });
   createPiece('knight', 'white', { x: -2.5, z: -3.5 });
   createPiece('bishop', 'white', { x: -1.5, z: -3.5 });
@@ -123,7 +135,7 @@ const placePieces = () => {
     createPiece('pawn', 'white', { x: i - 3.5, z: -2.5 });
   }
 
-  // Black 
+  // Black pieces
   createPiece('rook', 'black', { x: -3.5, z: 3.5 });
   createPiece('knight', 'black', { x: -2.5, z: 3.5 });
   createPiece('bishop', 'black', { x: -1.5, z: 3.5 });
@@ -152,13 +164,23 @@ const onMouseClick = (event) => {
     const intersects = raycaster.intersectObjects(squares);
     if (intersects.length > 0) {
       const square = intersects[0].object;
-      selectedPiece.position.set(square.position.x, 0.35, square.position.z);
+
+      // Store previous and new positions
+      const previousPosition = { x: selectedPiece.position.x, z: selectedPiece.position.z };
+      const newPosition = { x: square.position.x, z: square.position.z };
+
+      // Move the piece
+      selectedPiece.position.set(newPosition.x, 0.35, newPosition.z);
+
+      // Highlight the path
+      createPathHighlight(previousPosition, newPosition);
+
       selectedPiece = null;
     }
   } else {
     const intersects = raycaster.intersectObjects(pieces);
     if (intersects.length > 0) {
-      selectedPiece = intersects[0].object; 
+      selectedPiece = intersects[0].object;
       console.log(`Selected piece: ${selectedPiece.userData.type}`);
     }
   }
