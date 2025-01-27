@@ -1,10 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
 
-// Scene, Camera, and Renderer
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(6, 10, 10);
@@ -15,14 +13,12 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 
-// Orbit Controls
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.minDistance = 8;
 controls.maxDistance = 15;
 controls.maxPolarAngle = Math.PI / 2.2;
 
-// Lights
 const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 directionalLight.position.set(10, 15, 10);
 directionalLight.castShadow = true;
@@ -31,14 +27,12 @@ scene.add(directionalLight);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
 scene.add(ambientLight);
 
-// Chessboard Configuration
 const squares = [];
 const boardSize = 8;
 
 const createChessboard = () => {
   const tileSize = 1;
 
-  // Board Base
   const baseGeometry = new THREE.BoxGeometry(boardSize + 2, 0.5, boardSize + 2);
   const baseMaterial = new THREE.MeshStandardMaterial({
     color: 0x444444,
@@ -49,7 +43,6 @@ const createChessboard = () => {
   base.position.y = -0.25;
   scene.add(base);
 
-  // Tiles
   for (let row = 0; row < boardSize; row++) {
     for (let col = 0; col < boardSize; col++) {
       const isWhite = (row + col) % 2 === 0;
@@ -72,89 +65,80 @@ const createChessboard = () => {
 };
 
 createChessboard();
+scene.background = new THREE.Color(0x888888);
 
-// Add Letters and Numbers
-const addLabels = () => {
-  const loader = new FontLoader();
-  loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', (font) => {
-    const textMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
-    const textSize = 0.2;
-
-    for (let i = 0; i < boardSize; i++) {
-      // Numbers (left and right)
-      const numberGeometry = new TextGeometry(`${8 - i}`, {
-        font,
-        size: textSize,
-        height: 0.05,
-      });
-      const numberMesh = new THREE.Mesh(numberGeometry, textMaterial);
-      numberMesh.position.set(-boardSize / 2 - 0.8, 0.05, i - boardSize / 2 + 0.5);
-      numberMesh.rotation.x = -Math.PI / 2;
-      scene.add(numberMesh);
-
-      const numberMeshRight = numberMesh.clone();
-      numberMeshRight.position.x = boardSize / 2 + 0.3;
-      scene.add(numberMeshRight);
-
-      // Letters (top and bottom)
-      const letterGeometry = new TextGeometry(String.fromCharCode(97 + i), {
-        font,
-        size: textSize,
-        height: 0.05,
-      });
-      const letterMesh = new THREE.Mesh(letterGeometry, textMaterial);
-      letterMesh.position.set(i - boardSize / 2 + 0.5, 0.05, -boardSize / 2 - 0.8);
-      letterMesh.rotation.x = -Math.PI / 2;
-      scene.add(letterMesh);
-
-      const letterMeshTop = letterMesh.clone();
-      letterMeshTop.position.z = boardSize / 2 + 0.3;
-      scene.add(letterMeshTop);
-    }
-  });
-};
-
-addLabels();
-
-// Load Pieces
+// Pieces Configuration
 const pieces = [];
 let selectedPiece = null;
-const loader = new FBXLoader();
 
-const loadPiece = (fileName, color, position) => {
-  loader.load(`Chess/${fileName}`, (object) => {
-    object.traverse((child) => {
-      if (child.isMesh) {
-        child.material.color.set(color === 'white' ? 0xffffff : 0x000000);
-      }
-    });
-
-    object.scale.set(0.17, 0.17, 0.17);
-    object.position.set(position.x, 0, position.z);
-    object.userData = { color, type: fileName.split('.')[0] }; // Metadata
-    scene.add(object);
-    pieces.push(object);
+const createPiece = (type, color, position) => {
+  let geometry;
+  const material = new THREE.MeshStandardMaterial({
+    color: color === 'white' ? 0xffffff : 0x000000,
+    roughness: 0.4,
+    metalness: 0.1,
   });
+
+  switch (type) {
+    case 'pawn':
+      geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.7, 32);
+      break;
+    case 'rook':
+      geometry = new THREE.CylinderGeometry(0.4, 0.4, 1, 32);
+      break;
+    case 'knight':
+      geometry = new THREE.CylinderGeometry(0.35, 0.35, 0.9, 32);
+      break;
+    case 'bishop':
+      geometry = new THREE.CylinderGeometry(0.35, 0.35, 1, 32);
+      break;
+    case 'queen':
+      geometry = new THREE.CylinderGeometry(0.5, 0.4, 1.3, 32);
+      break;
+    case 'king':
+      geometry = new THREE.CylinderGeometry(0.5, 0.4, 1.4, 32);
+      break;
+    default:
+      geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.7, 32);
+  }
+
+  const piece = new THREE.Mesh(geometry, material);
+  piece.position.set(position.x, 0.35, position.z);
+  piece.userData = { type, color }; 
+  scene.add(piece);
+  pieces.push(piece);
 };
 
-// Place all pieces
-const initialPositions = [
-  { file: 'Rook.fbx', color: 'white', x: -3.5, z: -3.5 },
-  { file: 'Knight.fbx', color: 'white', x: -2.5, z: -3.5 },
-  { file: 'Bishop.fbx', color: 'white', x: -1.5, z: -3.5 },
-  { file: 'Queen.fbx', color: 'white', x: -0.5, z: -3.5 },
-  { file: 'King.fbx', color: 'white', x: 0.5, z: -3.5 },
-  { file: 'Bishop.fbx', color: 'white', x: 1.5, z: -3.5 },
-  { file: 'Knight.fbx', color: 'white', x: 2.5, z: -3.5 },
-  { file: 'Rook.fbx', color: 'white', x: 3.5, z: -3.5 },
-  { file: 'Pawn.fbx', color: 'white', x: -3.5, z: -2.5 },
-];
+const placePieces = () => {
+  // White 
+  createPiece('rook', 'white', { x: -3.5, z: -3.5 });
+  createPiece('knight', 'white', { x: -2.5, z: -3.5 });
+  createPiece('bishop', 'white', { x: -1.5, z: -3.5 });
+  createPiece('queen', 'white', { x: -0.5, z: -3.5 });
+  createPiece('king', 'white', { x: 0.5, z: -3.5 });
+  createPiece('bishop', 'white', { x: 1.5, z: -3.5 });
+  createPiece('knight', 'white', { x: 2.5, z: -3.5 });
+  createPiece('rook', 'white', { x: 3.5, z: -3.5 });
+  for (let i = 0; i < boardSize; i++) {
+    createPiece('pawn', 'white', { x: i - 3.5, z: -2.5 });
+  }
 
-initialPositions.forEach((pos) => {
-  loadPiece(pos.file, pos.color, { x: pos.x, z: pos.z });
-});
+  // Black 
+  createPiece('rook', 'black', { x: -3.5, z: 3.5 });
+  createPiece('knight', 'black', { x: -2.5, z: 3.5 });
+  createPiece('bishop', 'black', { x: -1.5, z: 3.5 });
+  createPiece('queen', 'black', { x: -0.5, z: 3.5 });
+  createPiece('king', 'black', { x: 0.5, z: 3.5 });
+  createPiece('bishop', 'black', { x: 1.5, z: 3.5 });
+  createPiece('knight', 'black', { x: 2.5, z: 3.5 });
+  createPiece('rook', 'black', { x: 3.5, z: 3.5 });
+  for (let i = 0; i < boardSize; i++) {
+    createPiece('pawn', 'black', { x: i - 3.5, z: 2.5 });
+  }
+};
 
-// Mouse Interaction Logic
+placePieces();
+
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
@@ -168,27 +152,26 @@ const onMouseClick = (event) => {
     const intersects = raycaster.intersectObjects(squares);
     if (intersects.length > 0) {
       const square = intersects[0].object;
-      selectedPiece.position.set(square.position.x, 0, square.position.z);
+      selectedPiece.position.set(square.position.x, 0.35, square.position.z);
       selectedPiece = null;
     }
   } else {
     const intersects = raycaster.intersectObjects(pieces);
     if (intersects.length > 0) {
-      selectedPiece = intersects[0].object;
+      selectedPiece = intersects[0].object; 
+      console.log(`Selected piece: ${selectedPiece.userData.type}`);
     }
   }
 };
 
 window.addEventListener('click', onMouseClick);
 
-// Render Loop
 const renderLoop = () => {
   controls.update();
   renderer.render(scene, camera);
   requestAnimationFrame(renderLoop);
 };
 
-// Handle Resizing
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
