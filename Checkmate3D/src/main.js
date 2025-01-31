@@ -69,12 +69,11 @@ const pieces = [];
 let selectedPiece = null;
 const paths = [];
 
-// Helper to create a highlight for a path
 const createPathHighlight = (start, end) => {
   const geometry = new THREE.BufferGeometry();
   const vertices = new Float32Array([
-    start.x, 0.05, start.z, // Starting point
-    end.x, 0.05, end.z,     // Ending point
+    start.x, 0.05, start.z, 
+    end.x, 0.05, end.z,   
   ]);
   geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
   const material = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
@@ -165,14 +164,11 @@ const onMouseClick = (event) => {
     if (intersects.length > 0) {
       const square = intersects[0].object;
 
-      // Store previous and new positions
       const previousPosition = { x: selectedPiece.position.x, z: selectedPiece.position.z };
       const newPosition = { x: square.position.x, z: square.position.z };
 
-      // Move the piece
       selectedPiece.position.set(newPosition.x, 0.35, newPosition.z);
 
-      // Highlight the path
       createPathHighlight(previousPosition, newPosition);
 
       selectedPiece = null;
