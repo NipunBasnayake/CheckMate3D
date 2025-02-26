@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -20,50 +21,50 @@ controls.maxPolarAngle = Math.PI / 2.2;
 const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 directionalLight.position.set(10, 15, 10);
 directionalLight.castShadow = true;
+directionalLight.color.set(0xffffff);
+directionalLight.intensity = 1.5;
 scene.add(directionalLight);
 
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+ambientLight.intensity = 0.2;
 scene.add(ambientLight);
+
+// Add backlight to create board outline
+const backLight = new THREE.DirectionalLight(0xffffff, 0.5);
+backLight.position.set(-10, 5, -10);
+scene.add(backLight);
 
 const squares = [];
 const boardSize = 8;
 
 const createChessboard = () => {
-  const tileSize = 1;
+  const loader = new GLTFLoader();
+  loader.load('assets/models/chess_board.glb', (gltf) => {
+    gltf.scene.traverse((child) => {
+      if (child.isMesh) {
+        child.receiveShadow = true;
+        child.castShadow = true;
+        
+        // Enhance material properties for better color vibrancy
+        if (child.material) {
+          child.material.roughness = 0.3;
+          child.material.metalness = 0.2;
+          child.material.needsUpdate = true;
+        }
 
-  const baseGeometry = new THREE.BoxGeometry(boardSize + 2, 0.5, boardSize + 2);
-  const baseMaterial = new THREE.MeshStandardMaterial({
-    color: 0x444444,
-    roughness: 0.5,
-    metalness: 0.2,
+        if (child.userData.square) {
+          squares.push(child);
+        }
+      }
+    });
+    scene.add(gltf.scene);
+  }, undefined, (error) => {
+    console.error('Error loading chessboard:', error);
   });
-  const base = new THREE.Mesh(baseGeometry, baseMaterial);
-  base.position.y = -0.25;
-  scene.add(base);
-
-  for (let row = 0; row < boardSize; row++) {
-    for (let col = 0; col < boardSize; col++) {
-      const isWhite = (row + col) % 2 === 0;
-      const color = isWhite ? 0xf0d9b5 : 0xb58863;
-
-      const tileGeometry = new THREE.BoxGeometry(tileSize, 0.1, tileSize);
-      const tileMaterial = new THREE.MeshStandardMaterial({
-        color,
-        roughness: 0.3,
-        metalness: 0.1,
-      });
-      const tile = new THREE.Mesh(tileGeometry, tileMaterial);
-
-      tile.position.set(col - boardSize / 2 + 0.5, 0, row - boardSize / 2 + 0.5);
-      tile.userData = { square: `${String.fromCharCode(97 + col)}${8 - row}` };
-      scene.add(tile);
-      squares.push(tile);
-    }
-  }
 };
 
 createChessboard();
-scene.background = new THREE.Color(0x888888);
+scene.background = new THREE.Color(0x111111);
 
 const pieces = [];
 let selectedPiece = null;
@@ -115,7 +116,7 @@ const createPiece = (type, color, position) => {
 
   const piece = new THREE.Mesh(geometry, material);
   piece.position.set(position.x, 0.35, position.z);
-  piece.userData = { type, color }; 
+  piece.userData = { type, color };
   scene.add(piece);
   pieces.push(piece);
 };
