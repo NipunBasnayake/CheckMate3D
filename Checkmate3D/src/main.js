@@ -2,68 +2,60 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
+// Scene setup
 const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x111111);
+
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(6, 10, 10);
 camera.lookAt(0, 0, 0);
 
-const canvas = document.querySelector('canvas.threejs');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({ 
+  canvas: document.querySelector('canvas.threejs'),
+  antialias: true
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
 
-const controls = new OrbitControls(camera, canvas);
+// Controls
+const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.minDistance = 8;
 controls.maxDistance = 15;
 controls.maxPolarAngle = Math.PI / 2.2;
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+// Lighting
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
 directionalLight.position.set(10, 15, 10);
 directionalLight.castShadow = true;
-directionalLight.color.set(0xffffff);
-directionalLight.intensity = 1.5;
 scene.add(directionalLight);
 
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-ambientLight.intensity = 0.2;
 scene.add(ambientLight);
 
 const backLight = new THREE.DirectionalLight(0xffffff, 0.5);
 backLight.position.set(-10, 5, -10);
 scene.add(backLight);
 
+// Game state
 const squares = [];
-const boardSize = 8;
+const pieces = [];
+let selectedPiece = null;
+let animationState = null;
 
+// Chessboard creation
 const createChessboard = () => {
   const loader = new GLTFLoader();
   loader.load('assets/models/chess_board.glb', (gltf) => {
-    // Scaling
     gltf.scene.scale.set(0.5, 0.5, 0.5);
-
-    // Positioning (Z-axis control)
-    gltf.scene.position.set(0, -0.3, 0); // 1 unit in Z direction
+    gltf.scene.position.set(0, -0.3, 0);
 
     gltf.scene.traverse((child) => {
       if (child.isMesh) {
         child.receiveShadow = true;
         child.castShadow = true;
-        
-        if (child.material) {
-          child.material.roughness = 0.3;
-          child.material.metalness = 0.2;
-          child.material.needsUpdate = true;
-        }
-
-        if (child.userData.square) {
-          squares.push(child);
-        }
-
-        // Adjust piece height if pieces are part of board model
-        if (child.userData.isPiece) {
-          child.position.z += 0.2; // Lift pieces above board surface
-        }
+        if (child.userData.square) squares.push(child);
       }
     });
 
@@ -73,59 +65,37 @@ const createChessboard = () => {
   });
 };
 
-createChessboard();
-scene.background = new THREE.Color(0x111111);
-
-const pieces = [];
-let selectedPiece = null;
-const paths = [];
-const pieceScale = new THREE.Vector3(1, 1, 1);
-
-const createPathHighlight = (start, end) => {
-  const geometry = new THREE.BufferGeometry();
-  const vertices = new Float32Array([
-    start.x, 0.05, start.z, 
-    end.x, 0.05, end.z,   
-  ]);
-  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-  const material = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
-  const pathLine = new THREE.Line(geometry, material);
-  scene.add(pathLine);
-  paths.push(pathLine);
-};
-
+// Piece creation
 const createPiece = (type, color, position) => {
   const loader = new GLTFLoader();
-  const formattedType = type === 'pawn' ? 'Pawn' : 
-                      type === 'knight' ? 'Knight' :
-                      type === 'bishop' ? 'Bishop' :
-                      type === 'rook' ? 'Rook' :
-                      type === 'queen' ? 'Queen' :
-                      'King';
-  
+  const formattedType = type.charAt(0).toUpperCase() + type.slice(1);
   const filename = `assets/models/Pieces/${color}${formattedType}.glb`;
 
   loader.load(filename, (gltf) => {
     const model = gltf.scene;
     model.position.set(position.x, 0, position.z);
-    model.scale.copy(pieceScale);
-    
+    model.userData = { 
+      type,
+      color,
+      originalY: 0,
+      position: { x: position.x, z: position.z }
+    };
+
     model.traverse((child) => {
       if (child.isMesh) {
         child.castShadow = true;
         child.receiveShadow = true;
-        child.userData = { root: model, type, color };
+        child.userData.originalEmissive = child.material.emissive.clone();
+        child.userData.originalEmissiveIntensity = child.material.emissiveIntensity;
       }
     });
 
-    model.userData = { type, color };
     scene.add(model);
     pieces.push(model);
-  }, undefined, (error) => {
-    console.error(`Error loading ${color} ${type}:`, error);
   });
 };
 
+// Initial piece placement
 const placePieces = () => {
   // White pieces
   createPiece('rook', 'white', { x: -3.5, z: -3.5 });
@@ -136,7 +106,7 @@ const placePieces = () => {
   createPiece('bishop', 'white', { x: 1.5, z: -3.5 });
   createPiece('knight', 'white', { x: 2.5, z: -3.5 });
   createPiece('rook', 'white', { x: 3.5, z: -3.5 });
-  for (let i = 0; i < boardSize; i++) {
+  for (let i = 0; i < 8; i++) {
     createPiece('pawn', 'white', { x: i - 3.5, z: -2.5 });
   }
 
@@ -149,51 +119,109 @@ const placePieces = () => {
   createPiece('bishop', 'black', { x: 1.5, z: 3.5 });
   createPiece('knight', 'black', { x: 2.5, z: 3.5 });
   createPiece('rook', 'black', { x: 3.5, z: 3.5 });
-  for (let i = 0; i < boardSize; i++) {
+  for (let i = 0; i < 8; i++) {
     createPiece('pawn', 'black', { x: i - 3.5, z: 2.5 });
   }
 };
 
-placePieces();
+// Selection handling
+const selectPiece = (piece) => {
+  selectedPiece = piece;
+  piece.position.y += 0.2;
+  piece.userData.originalY = piece.position.y;
 
+  piece.traverse((child) => {
+    if (child.isMesh) {
+      child.material.emissive.set(0x0000ff).multiplyScalar(2);
+      child.material.needsUpdate = true;
+    }
+  });
+};
+
+const deselectPiece = () => {
+  if (!selectedPiece) return;
+
+  selectedPiece.position.y = selectedPiece.userData.originalY;
+  selectedPiece.traverse((child) => {
+    if (child.isMesh) {
+      child.material.emissive.copy(child.userData.originalEmissive);
+      child.material.emissiveIntensity = child.userData.originalEmissiveIntensity;
+      child.material.needsUpdate = true;
+    }
+  });
+  selectedPiece = null;
+};
+
+// Interaction handling
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-const onMouseClick = (event) => {
+window.addEventListener('click', (event) => {
+  if (animationState) return;
+
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
   raycaster.setFromCamera(mouse, camera);
 
-  if (selectedPiece) {
-    const intersects = raycaster.intersectObjects(squares);
-    if (intersects.length > 0) {
-      const square = intersects[0].object;
-      const newPosition = { x: square.position.x, z: square.position.z };
+  const pieceIntersects = raycaster.intersectObjects(pieces, true);
+  const squareIntersects = raycaster.intersectObjects(squares);
 
-      selectedPiece.position.set(newPosition.x, 0, newPosition.z);
-      createPathHighlight(selectedPiece.position, newPosition);
-      selectedPiece = null;
-    }
-  } else {
-    const intersects = raycaster.intersectObjects(pieces, true);
-    if (intersects.length > 0) {
-      const clickedObject = intersects[0].object;
-      if (clickedObject.userData.root) {
-        selectedPiece = clickedObject.userData.root;
-        console.log(`Selected piece: ${selectedPiece.userData.type}`);
+  if (selectedPiece) {
+    if (pieceIntersects.length > 0) {
+      const clickedPiece = pieceIntersects[0].object.parent;
+      if (clickedPiece === selectedPiece) {
+        deselectPiece();
+      } else if (clickedPiece.userData.color === selectedPiece.userData.color) {
+        deselectPiece();
+        selectPiece(clickedPiece);
       }
+    } else if (squareIntersects.length > 0) {
+      const targetSquare = squareIntersects[0].object;
+      animationState = {
+        piece: selectedPiece,
+        start: new THREE.Vector3().copy(selectedPiece.position),
+        end: new THREE.Vector3(
+          targetSquare.position.x,
+          selectedPiece.userData.originalY,
+          targetSquare.position.z
+        ),
+        startTime: Date.now()
+      };
+    }
+  } else if (pieceIntersects.length > 0) {
+    selectPiece(pieceIntersects[0].object.parent);
+  }
+});
+
+// Animation loop
+const animate = () => {
+  controls.update();
+
+  if (animationState) {
+    const progress = Math.min((Date.now() - animationState.startTime) / 1000, 1);
+    animationState.piece.position.lerpVectors(
+      animationState.start,
+      animationState.end,
+      progress
+    );
+
+    if (progress === 1) {
+      animationState.piece.userData.position = {
+        x: animationState.end.x,
+        z: animationState.end.z
+      };
+      deselectPiece();
+      animationState = null;
     }
   }
-};
 
-window.addEventListener('click', onMouseClick);
-
-const renderLoop = () => {
-  controls.update();
   renderer.render(scene, camera);
-  requestAnimationFrame(renderLoop);
+  requestAnimationFrame(animate);
 };
+
+// Initial setup
+createChessboard();
+placePieces();
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -201,4 +229,4 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-renderLoop();
+animate();
