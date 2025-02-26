@@ -39,6 +39,12 @@ const boardSize = 8;
 const createChessboard = () => {
   const loader = new GLTFLoader();
   loader.load('assets/models/chess_board.glb', (gltf) => {
+    // Scaling
+    gltf.scene.scale.set(0.5, 0.5, 0.5);
+
+    // Positioning (Z-axis control)
+    gltf.scene.position.set(0, -0.3, 0); // 1 unit in Z direction
+
     gltf.scene.traverse((child) => {
       if (child.isMesh) {
         child.receiveShadow = true;
@@ -53,8 +59,14 @@ const createChessboard = () => {
         if (child.userData.square) {
           squares.push(child);
         }
+
+        // Adjust piece height if pieces are part of board model
+        if (child.userData.isPiece) {
+          child.position.z += 0.2; // Lift pieces above board surface
+        }
       }
     });
+
     scene.add(gltf.scene);
   }, undefined, (error) => {
     console.error('Error loading chessboard:', error);
@@ -67,7 +79,7 @@ scene.background = new THREE.Color(0x111111);
 const pieces = [];
 let selectedPiece = null;
 const paths = [];
-const pieceScale = new THREE.Vector3(1.6, 1.6, 1.6);
+const pieceScale = new THREE.Vector3(1, 1, 1);
 
 const createPathHighlight = (start, end) => {
   const geometry = new THREE.BufferGeometry();
