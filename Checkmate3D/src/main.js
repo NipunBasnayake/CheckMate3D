@@ -8,117 +8,120 @@ camera.position.set(6, 10, 10);
 camera.lookAt(0, 0, 0);
 
 const canvas = document.querySelector('canvas.threejs');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({ 
+  canvas, 
+  antialias: true,
+  powerPreference: "high-performance"
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
+controls.dampingFactor = 0.05;
 controls.minDistance = 8;
 controls.maxDistance = 15;
 controls.maxPolarAngle = Math.PI / 2.2;
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+// Lighting setup
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
 directionalLight.position.set(10, 15, 10);
 directionalLight.castShadow = true;
-directionalLight.color.set(0xffffff);
-directionalLight.intensity = 1.5;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
 scene.add(directionalLight);
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-ambientLight.intensity = 0.2;
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
 scene.add(ambientLight);
 
-// Add backlight to create board outline
 const backLight = new THREE.DirectionalLight(0xffffff, 0.5);
 backLight.position.set(-10, 5, -10);
 scene.add(backLight);
 
-const squares = [];
+// Game state
 const boardSize = 8;
-
-const createChessboard = () => {
-  const loader = new GLTFLoader();
-  loader.load('assets/models/chess_board.glb', (gltf) => {
-    gltf.scene.traverse((child) => {
-      if (child.isMesh) {
-        child.receiveShadow = true;
-        child.castShadow = true;
-        
-        // Enhance material properties for better color vibrancy
-        if (child.material) {
-          child.material.roughness = 0.3;
-          child.material.metalness = 0.2;
-          child.material.needsUpdate = true;
-        }
-
-        if (child.userData.square) {
-          squares.push(child);
-        }
-      }
-    });
-    scene.add(gltf.scene);
-  }, undefined, (error) => {
-    console.error('Error loading chessboard:', error);
-  });
-};
-
-createChessboard();
-scene.background = new THREE.Color(0x111111);
-
+const squares = [];
 const pieces = [];
 let selectedPiece = null;
 const paths = [];
+const pieceModels = { white: {}, black: {} };
 
-const createPathHighlight = (start, end) => {
-  const geometry = new THREE.BufferGeometry();
-  const vertices = new Float32Array([
-    start.x, 0.05, start.z, 
-    end.x, 0.05, end.z,   
-  ]);
-  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-  const material = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
-  const pathLine = new THREE.Line(geometry, material);
-  scene.add(pathLine);
-  paths.push(pathLine);
+// Load assets
+const loadAssets = async () => {
+  await loadChessboard();
+  await loadChessPieces();
 };
 
-const createPiece = (type, color, position) => {
-  let geometry;
-  const material = new THREE.MeshStandardMaterial({
-    color: color === 'white' ? 0xffffff : 0x000000,
-    roughness: 0.4,
-    metalness: 0.1,
+const loadChessboard = () => {
+  return new Promise((resolve) => {
+    const loader = new GLTFLoader();
+    loader.load('assets/models/chess_board.glb', (gltf) => {
+      gltf.scene.traverse((child) => {
+        if (child.isMesh) {
+          child.receiveShadow = true;
+          child.castShadow = true;
+          if (child.userData.square) {
+            squares.push(child);
+          }
+          child.material.roughness = 0.3;
+          child.material.metalness = 0.2;
+        }
+      });
+      scene.add(gltf.scene);
+      resolve();
+    });
   });
+};
 
-  switch (type) {
-    case 'pawn':
-      geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.7, 32);
-      break;
-    case 'rook':
-      geometry = new THREE.CylinderGeometry(0.4, 0.4, 1, 32);
-      break;
-    case 'knight':
-      geometry = new THREE.CylinderGeometry(0.35, 0.35, 0.9, 32);
-      break;
-    case 'bishop':
-      geometry = new THREE.CylinderGeometry(0.35, 0.35, 1, 32);
-      break;
-    case 'queen':
-      geometry = new THREE.CylinderGeometry(0.5, 0.4, 1.3, 32);
-      break;
-    case 'king':
-      geometry = new THREE.CylinderGeometry(0.5, 0.4, 1.4, 32);
-      break;
-    default:
-      geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.7, 32);
+const loadChessPieces = () => {
+  return new Promise((resolve) => {
+    const loader = new GLTFLoader();
+    loader.load('assets/models/chess_pieces.glb', (gltf) => {
+      const scale = 0.8;
+      
+      gltf.scene.traverse((child) => {
+        if (child.isMesh) {
+          const [color, type] = child.name.toLowerCase().split('_');
+          if (color && pieceModels[color] && type) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            
+            // Store original model
+            pieceModels[color][type] = child.clone();
+            
+            // Enhance materials
+            child.material = new THREE.MeshStandardMaterial({
+              color: color === 'white' ? 0xeeeeee : 0x222222,
+              roughness: 0.3,
+              metalness: 0.2
+            });
+          }
+        }
+      });
+      resolve();
+    });
+  });
+};
+
+// Piece management
+const createPiece = (type, color, position) => {
+  const model = pieceModels[color][type];
+  if (!model) {
+    console.error(`Missing model for ${color} ${type}`);
+    return null;
   }
 
-  const piece = new THREE.Mesh(geometry, material);
+  const piece = model.clone();
   piece.position.set(position.x, 0.35, position.z);
-  piece.userData = { type, color };
-  scene.add(piece);
+  piece.scale.set(0.8, 0.8, 0.8);
+  piece.rotation.y = Math.PI;
+  piece.userData = { type, color, originalPosition: position };
+  piece.castShadow = true;
   pieces.push(piece);
+  scene.add(piece);
+  return piece;
 };
 
 const placePieces = () => {
@@ -131,6 +134,8 @@ const placePieces = () => {
   createPiece('bishop', 'white', { x: 1.5, z: -3.5 });
   createPiece('knight', 'white', { x: 2.5, z: -3.5 });
   createPiece('rook', 'white', { x: 3.5, z: -3.5 });
+  
+  // White pawns
   for (let i = 0; i < boardSize; i++) {
     createPiece('pawn', 'white', { x: i - 3.5, z: -2.5 });
   }
@@ -144,12 +149,29 @@ const placePieces = () => {
   createPiece('bishop', 'black', { x: 1.5, z: 3.5 });
   createPiece('knight', 'black', { x: 2.5, z: 3.5 });
   createPiece('rook', 'black', { x: 3.5, z: 3.5 });
+  
+  // Black pawns
   for (let i = 0; i < boardSize; i++) {
     createPiece('pawn', 'black', { x: i - 3.5, z: 2.5 });
   }
 };
 
-placePieces();
+// Interaction
+const createPathHighlight = (start, end) => {
+  paths.forEach(path => scene.remove(path));
+  paths.length = 0;
+
+  const geometry = new THREE.BufferGeometry();
+  const vertices = new Float32Array([
+    start.x, 0.05, start.z, 
+    end.x, 0.05, end.z
+  ]);
+  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  const material = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+  const pathLine = new THREE.Line(geometry, material);
+  scene.add(pathLine);
+  paths.push(pathLine);
+};
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -164,27 +186,35 @@ const onMouseClick = (event) => {
     const intersects = raycaster.intersectObjects(squares);
     if (intersects.length > 0) {
       const square = intersects[0].object;
-
-      const previousPosition = { x: selectedPiece.position.x, z: selectedPiece.position.z };
-      const newPosition = { x: square.position.x, z: square.position.z };
-
-      selectedPiece.position.set(newPosition.x, 0.35, newPosition.z);
-
-      createPathHighlight(previousPosition, newPosition);
-
+      const newPosition = { 
+        x: square.position.x, 
+        y: 0.35,
+        z: square.position.z 
+      };
+      
+      createPathHighlight(selectedPiece.position, newPosition);
+      selectedPiece.position.copy(newPosition);
       selectedPiece = null;
     }
   } else {
     const intersects = raycaster.intersectObjects(pieces);
     if (intersects.length > 0) {
       selectedPiece = intersects[0].object;
-      console.log(`Selected piece: ${selectedPiece.userData.type}`);
+      selectedPiece.material.emissive.setHex(0x444444);
+      console.log(`Selected: ${selectedPiece.userData.color} ${selectedPiece.userData.type}`);
     }
   }
 };
 
-window.addEventListener('click', onMouseClick);
+// Initialization
+const init = async () => {
+  scene.background = new THREE.Color(0x111111);
+  await loadAssets();
+  placePieces();
+  window.addEventListener('click', onMouseClick);
+};
 
+// Render loop
 const renderLoop = () => {
   controls.update();
   renderer.render(scene, camera);
@@ -197,4 +227,6 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-renderLoop();
+init().then(() => {
+  renderLoop();
+});
