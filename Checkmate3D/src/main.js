@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
-// Scene setup
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
 
@@ -18,14 +17,12 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
 
-// Controls
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.minDistance = 8;
 controls.maxDistance = 15;
 controls.maxPolarAngle = Math.PI / 2.2;
 
-// Lighting
 const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
 directionalLight.position.set(10, 15, 10);
 directionalLight.castShadow = true;
@@ -38,13 +35,11 @@ const backLight = new THREE.DirectionalLight(0xffffff, 0.5);
 backLight.position.set(-10, 5, -10);
 scene.add(backLight);
 
-// Game state
 const squares = [];
 const pieces = [];
 let selectedPiece = null;
 let animationState = null;
 
-// Chessboard creation
 const createChessboard = () => {
   const loader = new GLTFLoader();
   loader.load('assets/models/chess_board.glb', (gltf) => {
@@ -65,7 +60,6 @@ const createChessboard = () => {
   });
 };
 
-// Function to get the square name based on its position
 const getSquareName = (position) => {
   const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
   const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
@@ -80,7 +74,6 @@ const getSquareName = (position) => {
   }
 };
 
-// Piece creation
 const createPiece = (type, color, position) => {
   const loader = new GLTFLoader();
   const formattedType = type.charAt(0).toUpperCase() + type.slice(1);
@@ -90,7 +83,6 @@ const createPiece = (type, color, position) => {
     const model = gltf.scene;
     model.position.set(position.x, 0, position.z);
 
-    // Get the square name for the piece's starting position
     const squareName = getSquareName(position);
 
     model.userData = { 
@@ -98,7 +90,7 @@ const createPiece = (type, color, position) => {
       color,
       originalY: 0,
       position: { x: position.x, z: position.z },
-      name: `${color} ${type} ${squareName}` 
+      name: `${color} ${type} ${squareName}`
     };
 
     model.traverse((child) => {
@@ -110,10 +102,10 @@ const createPiece = (type, color, position) => {
         
         if (color === "white") {
           child.material.color.set(0xffffff);
-          child.material.metalness = 0.2; 
-          child.material.roughness = 0.1; 
+          child.material.metalness = 0.2;
+          child.material.roughness = 0.1;
         } else if (color === "black") {
-          child.material.color.set(0x6b6b6b); 
+          child.material.color.set(0x6b6b6b);
           child.material.metalness = 0.5;
           child.material.roughness = 0.1;
         }
@@ -125,39 +117,34 @@ const createPiece = (type, color, position) => {
   });
 };
 
-
-// Initial piece placement
 const placePieces = () => {
-  // black pieces
-  createPiece('rook', 'black', { x: -3.5, z: -3.5 }); // a1
-  createPiece('knight', 'black', { x: -2.5, z: -3.5 }); // b1
-  createPiece('bishop', 'black', { x: -1.5, z: -3.5 }); // c1
-  createPiece('queen', 'black', { x: -0.5, z: -3.5 }); // d1
-  createPiece('king', 'black', { x: 0.5, z: -3.5 }); // e1
-  createPiece('bishop', 'black', { x: 1.5, z: -3.5 }); // f1
-  createPiece('knight', 'black', { x: 2.5, z: -3.5 }); // g1
-  createPiece('rook', 'black', { x: 3.5, z: -3.5 }); // h1
+  createPiece('rook', 'black', { x: -3.5, z: -3.5 });
+  createPiece('knight', 'black', { x: -2.5, z: -3.5 });
+  createPiece('bishop', 'black', { x: -1.5, z: -3.5 });
+  createPiece('queen', 'black', { x: -0.5, z: -3.5 });
+  createPiece('king', 'black', { x: 0.5, z: -3.5 });
+  createPiece('bishop', 'black', { x: 1.5, z: -3.5 });
+  createPiece('knight', 'black', { x: 2.5, z: -3.5 });
+  createPiece('rook', 'black', { x: 3.5, z: -3.5 });
   for (let i = 0; i < 8; i++) {
-    createPiece('pawn', 'black', { x: i - 3.5, z: -2.5 }); // a2 to h2
+    createPiece('pawn', 'black', { x: i - 3.5, z: -2.5 });
   }
 
-  // white pieces
-  createPiece('rook', 'white', { x: -3.5, z: 3.5 }); // a8
-  createPiece('knight', 'white', { x: -2.5, z: 3.5 }); // b8
-  createPiece('bishop', 'white', { x: -1.5, z: 3.5 }); // c8
-  createPiece('queen', 'white', { x: -0.5, z: 3.5 }); // d8
-  createPiece('king', 'white', { x: 0.5, z: 3.5 }); // e8
-  createPiece('bishop', 'white', { x: 1.5, z: 3.5 }); // f8
-  createPiece('knight', 'white', { x: 2.5, z: 3.5 }); // g8
-  createPiece('rook', 'white', { x: 3.5, z: 3.5 }); // h8
+  createPiece('rook', 'white', { x: -3.5, z: 3.5 });
+  createPiece('knight', 'white', { x: -2.5, z: 3.5 });
+  createPiece('bishop', 'white', { x: -1.5, z: 3.5 });
+  createPiece('queen', 'white', { x: -0.5, z: 3.5 });
+  createPiece('king', 'white', { x: 0.5, z: 3.5 });
+  createPiece('bishop', 'white', { x: 1.5, z: 3.5 });
+  createPiece('knight', 'white', { x: 2.5, z: 3.5 });
+  createPiece('rook', 'white', { x: 3.5, z: 3.5 });
   for (let i = 0; i < 8; i++) {
     createPiece('pawn', 'white', { x: i - 3.5, z: 2.5 });
   }
 };
 
-// Selection handling
 const selectPiece = (piece) => {
-  console.log('Selected Piece:', piece.userData.name); 
+  console.log('Selected Piece:', piece.userData.name);
   
   selectedPiece = piece;
   piece.position.y += 0.2;
@@ -186,7 +173,6 @@ const deselectPiece = () => {
   selectedPiece = null;
 };
 
-// Interaction handling
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
@@ -221,8 +207,6 @@ window.addEventListener('click', (event) => {
   }
 });
 
-
-// Animation loop
 const animate = () => {
   controls.update();
 
@@ -248,7 +232,6 @@ const animate = () => {
   requestAnimationFrame(animate);
 };
 
-// Initial setup
 createChessboard();
 placePieces();
 
@@ -287,7 +270,6 @@ const createUnderChessboard = () => {
     }
   }
 };
-
 
 createUnderChessboard();
 
