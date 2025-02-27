@@ -65,6 +65,21 @@ const createChessboard = () => {
   });
 };
 
+// Function to get the square name based on its position
+const getSquareName = (position) => {
+  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+
+  const fileIndex = Math.round(position.x + 3.5);
+  const rankIndex = Math.round(position.z + 3.5);
+
+  if (fileIndex >= 0 && fileIndex < 8 && rankIndex >= 0 && rankIndex < 8) {
+    return files[fileIndex] + ranks[rankIndex];
+  } else {
+    return null;
+  }
+};
+
 // Piece creation
 const createPiece = (type, color, position) => {
   const loader = new GLTFLoader();
@@ -74,11 +89,16 @@ const createPiece = (type, color, position) => {
   loader.load(filename, (gltf) => {
     const model = gltf.scene;
     model.position.set(position.x, 0, position.z);
+
+    // Get the square name for the piece's starting position
+    const squareName = getSquareName(position);
+
     model.userData = { 
       type,
       color,
       originalY: 0,
-      position: { x: position.x, z: position.z }
+      position: { x: position.x, z: position.z },
+      name: `${color} ${type} ${squareName}` // Assign a name like "White Rook a1"
     };
 
     model.traverse((child) => {
@@ -97,35 +117,37 @@ const createPiece = (type, color, position) => {
 
 // Initial piece placement
 const placePieces = () => {
-  // White pieces
-  createPiece('rook', 'white', { x: -3.5, z: -3.5 });
-  createPiece('knight', 'white', { x: -2.5, z: -3.5 });
-  createPiece('bishop', 'white', { x: -1.5, z: -3.5 });
-  createPiece('queen', 'white', { x: -0.5, z: -3.5 });
-  createPiece('king', 'white', { x: 0.5, z: -3.5 });
-  createPiece('bishop', 'white', { x: 1.5, z: -3.5 });
-  createPiece('knight', 'white', { x: 2.5, z: -3.5 });
-  createPiece('rook', 'white', { x: 3.5, z: -3.5 });
+  // black pieces
+  createPiece('rook', 'black', { x: -3.5, z: -3.5 }); // a1
+  createPiece('knight', 'black', { x: -2.5, z: -3.5 }); // b1
+  createPiece('bishop', 'black', { x: -1.5, z: -3.5 }); // c1
+  createPiece('queen', 'black', { x: -0.5, z: -3.5 }); // d1
+  createPiece('king', 'black', { x: 0.5, z: -3.5 }); // e1
+  createPiece('bishop', 'black', { x: 1.5, z: -3.5 }); // f1
+  createPiece('knight', 'black', { x: 2.5, z: -3.5 }); // g1
+  createPiece('rook', 'black', { x: 3.5, z: -3.5 }); // h1
   for (let i = 0; i < 8; i++) {
-    createPiece('pawn', 'white', { x: i - 3.5, z: -2.5 });
+    createPiece('pawn', 'black', { x: i - 3.5, z: -2.5 }); // a2 to h2
   }
 
-  // Black pieces
-  createPiece('rook', 'black', { x: -3.5, z: 3.5 });
-  createPiece('knight', 'black', { x: -2.5, z: 3.5 });
-  createPiece('bishop', 'black', { x: -1.5, z: 3.5 });
-  createPiece('queen', 'black', { x: -0.5, z: 3.5 });
-  createPiece('king', 'black', { x: 0.5, z: 3.5 });
-  createPiece('bishop', 'black', { x: 1.5, z: 3.5 });
-  createPiece('knight', 'black', { x: 2.5, z: 3.5 });
-  createPiece('rook', 'black', { x: 3.5, z: 3.5 });
+  // white pieces
+  createPiece('rook', 'white', { x: -3.5, z: 3.5 }); // a8
+  createPiece('knight', 'white', { x: -2.5, z: 3.5 }); // b8
+  createPiece('bishop', 'white', { x: -1.5, z: 3.5 }); // c8
+  createPiece('queen', 'white', { x: -0.5, z: 3.5 }); // d8
+  createPiece('king', 'white', { x: 0.5, z: 3.5 }); // e8
+  createPiece('bishop', 'white', { x: 1.5, z: 3.5 }); // f8
+  createPiece('knight', 'white', { x: 2.5, z: 3.5 }); // g8
+  createPiece('rook', 'white', { x: 3.5, z: 3.5 }); // h8
   for (let i = 0; i < 8; i++) {
-    createPiece('pawn', 'black', { x: i - 3.5, z: 2.5 });
+    createPiece('pawn', 'white', { x: i - 3.5, z: 2.5 }); // a7 to h7
   }
 };
 
 // Selection handling
 const selectPiece = (piece) => {
+  console.log('Selected Piece:', piece.userData.name); // Log the piece's name
+  
   selectedPiece = piece;
   piece.position.y += 0.2;
   piece.userData.originalY = piece.position.y;
@@ -142,6 +164,7 @@ const deselectPiece = () => {
   if (!selectedPiece) return;
 
   selectedPiece.position.y = selectedPiece.userData.originalY;
+  selectedPiece.position.y -= 0.2;
   selectedPiece.traverse((child) => {
     if (child.isMesh) {
       child.material.emissive.copy(child.userData.originalEmissive);
