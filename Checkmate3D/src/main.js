@@ -199,6 +199,18 @@ window.addEventListener('click', (event) => {
       const targetSquare = squareIntersects[0].object;
       const squareName = getSquareName(targetSquare.position);
       console.log('Clicked Square:', squareName);
+      
+      const targetPosition = new THREE.Vector3(targetSquare.position.x, selectedPiece.position.y, targetSquare.position.z);
+
+      animationState = {
+        piece: selectedPiece,
+        start: selectedPiece.position.clone(),
+        end: targetPosition,
+        startTime: Date.now()
+      };
+
+      selectedPiece.userData.position = { x: targetPosition.x, z: targetPosition.z };
+      deselectPiece(); 
     }
   } else if (pieceIntersects.length > 0) {
     const clickedPiece = pieceIntersects[0].object.parent;
@@ -223,14 +235,18 @@ const animate = () => {
         x: animationState.end.x,
         z: animationState.end.z
       };
+
+      animationState.piece.position.y -= 0.2;
+
       deselectPiece();
-      animationState = null;
+      animationState = null; 
     }
   }
 
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 };
+
 
 createChessboard();
 placePieces();
