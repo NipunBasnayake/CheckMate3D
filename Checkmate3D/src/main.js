@@ -98,7 +98,7 @@ const createPiece = (type, color, position) => {
       color,
       originalY: 0,
       position: { x: position.x, z: position.z },
-      name: `${color} ${type} ${squareName}` // Assign a name like "White Rook a1"
+      name: `${color} ${type} ${squareName}` 
     };
 
     model.traverse((child) => {
@@ -107,6 +107,16 @@ const createPiece = (type, color, position) => {
         child.receiveShadow = true;
         child.userData.originalEmissive = child.material.emissive.clone();
         child.userData.originalEmissiveIntensity = child.material.emissiveIntensity;
+        
+        if (color === "white") {
+          child.material.color.set(0xffffff);
+          child.material.metalness = 0.2; 
+          child.material.roughness = 0.1; 
+        } else if (color === "black") {
+          child.material.color.set(0x6b6b6b); 
+          child.material.metalness = 0.5;
+          child.material.roughness = 0.1;
+        }
       }
     });
 
@@ -114,6 +124,7 @@ const createPiece = (type, color, position) => {
     pieces.push(model);
   });
 };
+
 
 // Initial piece placement
 const placePieces = () => {
@@ -140,13 +151,13 @@ const placePieces = () => {
   createPiece('knight', 'white', { x: 2.5, z: 3.5 }); // g8
   createPiece('rook', 'white', { x: 3.5, z: 3.5 }); // h8
   for (let i = 0; i < 8; i++) {
-    createPiece('pawn', 'white', { x: i - 3.5, z: 2.5 }); // a7 to h7
+    createPiece('pawn', 'white', { x: i - 3.5, z: 2.5 });
   }
 };
 
 // Selection handling
 const selectPiece = (piece) => {
-  console.log('Selected Piece:', piece.userData.name); // Log the piece's name
+  console.log('Selected Piece:', piece.userData.name); 
   
   selectedPiece = piece;
   piece.position.y += 0.2;
@@ -200,21 +211,16 @@ window.addEventListener('click', (event) => {
       }
     } else if (squareIntersects.length > 0) {
       const targetSquare = squareIntersects[0].object;
-      animationState = {
-        piece: selectedPiece,
-        start: new THREE.Vector3().copy(selectedPiece.position),
-        end: new THREE.Vector3(
-          targetSquare.position.x,
-          selectedPiece.userData.originalY,
-          targetSquare.position.z
-        ),
-        startTime: Date.now()
-      };
+      const squareName = getSquareName(targetSquare.position);
+      console.log('Clicked Square:', squareName);
     }
   } else if (pieceIntersects.length > 0) {
-    selectPiece(pieceIntersects[0].object.parent);
+    const clickedPiece = pieceIntersects[0].object.parent;
+    console.log('Clicked Piece:', clickedPiece.userData.name);
+    selectPiece(clickedPiece);
   }
 });
+
 
 // Animation loop
 const animate = () => {
@@ -251,5 +257,38 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+const createUnderChessboard = () => {
+  const size = 1;
+  const height = -0.07; 
+  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+
+  for (let x = 0; x < 8; x++) {
+    for (let z = 0; z < 8; z++) {
+      const isDarkSquare = (x + z) % 2 !== 0;
+      const color = isDarkSquare ? 0x222222 : 0xffffff;
+
+      const geometry = new THREE.BoxGeometry(size, 0.1, size);
+      const material = new THREE.MeshStandardMaterial({ 
+        color, 
+        metalness: 0.7, 
+        roughness: 0.7  
+      });
+
+      const square = new THREE.Mesh(geometry, material);
+      square.position.set(x - 3.52, height, z - 3.5);
+      square.receiveShadow = true;
+      
+      const squareName = `${files[x]}${ranks[z]}`;
+      square.userData.name = squareName;
+      squares.push(square);
+      scene.add(square);
+    }
+  }
+};
+
+
+createUnderChessboard();
 
 animate();
