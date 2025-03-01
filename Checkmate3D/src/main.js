@@ -1,6 +1,39 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { select } from 'three/tsl';
+
+const loadingScreen = document.getElementById("loading-screen");
+
+const loadModels = () => {
+    return new Promise((resolve) => {
+        const loader = new GLTFLoader();
+        loader.load('assets/models/chess_board.glb', (gltf) => {
+            gltf.scene.scale.set(0.5, 0.5, 0.5);
+            gltf.scene.position.set(0, -0.3, 0);
+
+            gltf.scene.traverse((child) => {
+                if (child.isMesh) {
+                    child.receiveShadow = true;
+                    child.castShadow = true;
+                    if (child.userData.square) squares.push(child);
+                }
+            });
+
+            scene.add(gltf.scene);
+            resolve();
+        }, undefined, (error) => {
+            console.error("Error loading chessboard:", error);
+            resolve();
+        });
+    });
+};
+
+loadingScreen.style.display = "flex";
+loadModels().then(() => {
+    loadingScreen.style.display = "none";
+});
+
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
@@ -144,11 +177,11 @@ const placePieces = () => {
 };
 
 const selectPiece = (piece) => {
-  console.log('Selected Piece:', piece.userData.name);
-  
   selectedPiece = piece;
   piece.position.y += 0.2;
   piece.userData.originalY = piece.position.y;
+
+  console.log("Selected Piece: ", piece.userData.name); // Debugging
 
   piece.traverse((child) => {
     if (child.isMesh) {
@@ -157,6 +190,7 @@ const selectPiece = (piece) => {
     }
   });
 };
+
 
 const deselectPiece = () => {
   if (!selectedPiece) return;
@@ -198,7 +232,6 @@ window.addEventListener('click', (event) => {
     } else if (squareIntersects.length > 0) {
       const targetSquare = squareIntersects[0].object;
       const squareName = getSquareName(targetSquare.position);
-      console.log('Clicked Square:', squareName);
       
       const targetPosition = new THREE.Vector3(targetSquare.position.x, selectedPiece.position.y, targetSquare.position.z);
 
@@ -210,11 +243,14 @@ window.addEventListener('click', (event) => {
       };
 
       selectedPiece.userData.position = { x: targetPosition.x, z: targetPosition.z };
-      deselectPiece(); 
+      deselectPiece();
+
+      // Debugging the name
+      console.log("Target Square: ", squareName);
+      console.log("Selected Piece Name: ", selectedPiece.userData.name); // Here should be the name
     }
   } else if (pieceIntersects.length > 0) {
     const clickedPiece = pieceIntersects[0].object.parent;
-    console.log('Clicked Piece:', clickedPiece.userData.name);
     selectPiece(clickedPiece);
   }
 });
@@ -246,7 +282,6 @@ const animate = () => {
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 };
-
 
 createChessboard();
 placePieces();
