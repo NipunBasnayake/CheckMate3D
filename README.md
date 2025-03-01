@@ -61,9 +61,7 @@ Checkmate 3D is an interactive chess game built using Three.js. It provides a 3D
 ---
 
 ## **Screenshots**
-![Chessboard](Screenshots/Chessboard.png)
-![Piece Selection](Screenshots/Select.png)
-![Movement Animation](Screenshots/Move.png)
+![Chessboard](Screenshots/1.png)
 
 ---
 
