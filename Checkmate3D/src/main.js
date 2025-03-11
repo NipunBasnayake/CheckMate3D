@@ -387,7 +387,6 @@ loadChessboard()
         loadingScreen.textContent = "Failed to load assets. Please check the console for details.";
     });
 
-// Helper functions
 const createUnderChessboard = () => {
   const height = -0.07;
   for (let x = 0; x < 8; x++) {
@@ -395,20 +394,18 @@ const createUnderChessboard = () => {
           const isDarkSquare = (x + z) % 2 !== 0;
           const color = isDarkSquare ? 0x222222 : 0xffffff;
 
-          // Use MeshStandardMaterial with emissive support
           const material = new THREE.MeshStandardMaterial({ 
               color, 
               metalness: 0.7,
               roughness: 0.7,
-              emissive: new THREE.Color(0x000000), // Initialize emissive
-              emissiveIntensity: 0 // Initialize emissive intensity
+              emissive: new THREE.Color(0x000000), 
+              emissiveIntensity: 0 
           });
 
           const square = new THREE.Mesh(squareGeometry, material);
           square.position.set(x - 3.5, height, z - 3.5);
           square.receiveShadow = true;
           
-          // Store original emissive properties
           square.userData.originalEmissive = material.emissive.clone();
           square.userData.originalEmissiveIntensity = material.emissiveIntensity;
 

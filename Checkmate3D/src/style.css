@@ -1,29 +1,231 @@
-*{
-  /* margin: 0;
-  overflow: hidden; */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #0a192f;
+  font-family: 'Arial', sans-serif;
+  overflow: hidden;
+}
+
+#welcome-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(10, 25, 47, 0.95);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+#welcome-screen h1 {
+  color: #64ffda;
+  font-size: 3em;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px rgba(100, 255, 218, 0.5);
+}
+
+#welcome-screen p {
+  color: #ccd6f6;
+  font-size: 1.2em;
+  margin-bottom: 30px;
+}
+
+.color-buttons {
+  display: flex;
+  gap: 20px;
+}
+
+.color-button {
+  padding: 15px 30px;
+  font-size: 1.1em;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.color-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(100, 255, 218, 0.3);
+}
+
+#white-button {
+  background: #64ffda;
+  color: #0a192f;
+}
+
+#black-button {
+  background: #0a192f;
+  color: #64ffda;
+  border: 2px solid #64ffda;
 }
 
 #loading-screen {
   position: fixed;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 1);
-  display: flex;
+  background: #0a192f;
+  display: none;
   justify-content: center;
   align-items: center;
-  z-index: 100;
+  z-index: 999;
+  flex-direction: column;
 }
 
 .loader {
-  border: 8px solid #f3f3f3;
-  border-top: 8px solid #3498db;
+  border: 4px solid rgba(100, 255, 218, 0.2);
+  border-top: 4px solid #64ffda;
   border-radius: 50%;
-  width: 60px;
-  height: 60px;
+  width: 50px;
+  height: 50px;
   animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+#loading-text {
+  color: #64ffda;
+  font-size: 1.2em;
 }
 
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+canvas.threejs {
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+#game-info {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: rgba(10, 25, 47, 0.8);
+  border-radius: 10px;
+  padding: 15px;
+  color: #ccd6f6;
+  z-index: 10;
+  max-width: 300px;
+  backdrop-filter: blur(5px);
+  border: 1px solid #64ffda;
+  box-shadow: 0 0 15px rgba(100, 255, 218, 0.3);
+}
+
+#turn-indicator {
+  font-size: 1.2em;
+  margin-bottom: 15px;
+  text-align: center;
+  padding: 5px;
+  background: rgba(100, 255, 218, 0.1);
+  border-radius: 5px;
+  color: #64ffda;
+}
+
+#move-history {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+#move-history h3 {
+  margin-bottom: 10px;
+  text-align: center;
+  color: #64ffda;
+}
+
+#moves-container {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.move-entry {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(100, 255, 218, 0.2);
+}
+
+.move-number {
+  color: #64ffda;
+  min-width: 30px;
+}
+
+.move-notation {
+  color: #ffffff;
+}
+
+#captured-pieces {
+  margin-top: 15px;
+}
+
+#white-captured, #black-captured {
+  padding: 5px;
+  background: rgba(10, 25, 47, 0.5);
+  border-radius: 3px;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+}
+
+#game-status {
+  font-size: 1.2em;
+  margin-top: 15px;
+  text-align: center;
+  padding: 5px;
+  border-radius: 5px;
+}
+
+button#resign-button, button#new-game-button {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+button#resign-button {
+  background: #ff6b6b;
+  color: white;
+}
+
+button#new-game-button {
+  background: #64ffda;
+  color: #0a192f;
+}
+
+button#resign-button:hover, button#new-game-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+#move-history::-webkit-scrollbar {
+  width: 6px;
+}
+
+#move-history::-webkit-scrollbar-track {
+  background: rgba(100, 255, 218, 0.1);
+  border-radius: 3px;
+}
+
+#move-history::-webkit-scrollbar-thumb {
+  background: rgba(100, 255, 218, 0.3);
+  border-radius: 3px;
+}
+
+#move-history::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 255, 218, 0.5);
 }
