@@ -476,25 +476,28 @@ const loadChessboard = () => {
     loadingText.textContent = "Creating chessboard...";
     return new Promise((resolve) => {
         const boardGroup = new THREE.Group();
-        const boardGeometry = new THREE.BoxGeometry(8, 0.2, 8);
-        const boardMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+        
+        const boardGeometry = new THREE.BoxGeometry(8, 0.3, 8);
+        const boardMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
         const board = new THREE.Mesh(boardGeometry, boardMaterial);
-        board.receiveShadow = true;
         boardGroup.add(board);
 
-        // Create squares on the board
+        const borderGeometry = new THREE.BoxGeometry(8.5, 0.2, 8.5);
+        const borderMaterial = new THREE.MeshBasicMaterial({ color: 0x5D3A1A });
+        const border = new THREE.Mesh(borderGeometry, borderMaterial);
+        border.position.y = -0.1;
+        boardGroup.add(border);
+
         for (let x = -3.5; x <= 3.5; x++) {
             for (let z = -3.5; z <= 3.5; z++) {
                 const isWhite = (Math.floor(x + 3.5) + Math.floor(z + 3.5)) % 2 === 0;
                 const squareGeometry = new THREE.BoxGeometry(0.95, 0.1, 0.95);
-                const squareMaterial = new THREE.MeshStandardMaterial({
-                    color: isWhite ? 0xE8E8E8 : 0x303030,
-                    emissive: new THREE.Color(0x000000)
+                const squareMaterial = new THREE.MeshBasicMaterial({
+                    color: isWhite ? 0xFFFFFF : 0x000000
                 });
 
                 const square = new THREE.Mesh(squareGeometry, squareMaterial);
-                square.position.set(x, 0.2, z);
-                square.receiveShadow = true;
+                square.position.set(x, 0.25, z);
 
                 const fileIndex = Math.round(x + 3.5);
                 const rankIndex = Math.round(z + 3.5);
@@ -502,8 +505,7 @@ const loadChessboard = () => {
                 square.userData = {
                     square: true,
                     name: files[fileIndex] + ranks[rankIndex],
-                    originalEmissive: new THREE.Color(0x000000),
-                    originalEmissiveIntensity: 0
+                    isWhite: isWhite
                 };
 
                 squares.push(square);
@@ -511,9 +513,58 @@ const loadChessboard = () => {
             }
         }
 
+        addSimpleCoordinates(boardGroup);
         boardContainer.add(boardGroup);
         resolve();
     });
+};
+
+const addSimpleCoordinates = (boardGroup) => {
+    for (let i = 0; i < 8; i++) {
+        const fileCanvas = document.createElement('canvas');
+        fileCanvas.width = 64;
+        fileCanvas.height = 64;
+        const fileCtx = fileCanvas.getContext('2d');
+        fileCtx.fillStyle = 'white';
+        fileCtx.font = '48px Arial';
+        fileCtx.textAlign = 'center';
+        fileCtx.textBaseline = 'middle';
+        fileCtx.fillText(files[i], 32, 32);
+        
+        const fileTexture = new THREE.CanvasTexture(fileCanvas);
+        const fileMaterial = new THREE.MeshBasicMaterial({ 
+            map: fileTexture,
+            transparent: true
+        });
+        
+        const fileGeometry = new THREE.PlaneGeometry(0.4, 0.4);
+        const fileMesh = new THREE.Mesh(fileGeometry, fileMaterial);
+        fileMesh.position.set(i - 3.5, 0.4, 4);
+        fileMesh.rotation.x = -Math.PI / 2;
+        boardGroup.add(fileMesh);
+        
+        const rankCanvas = document.createElement('canvas');
+        rankCanvas.width = 64;
+        rankCanvas.height = 64;
+        const rankCtx = rankCanvas.getContext('2d');
+        rankCtx.fillStyle = 'white';
+        rankCtx.font = '48px Arial';
+        rankCtx.textAlign = 'center';
+        rankCtx.textBaseline = 'middle';
+        rankCtx.fillText(ranks[i], 32, 32);
+        
+        const rankTexture = new THREE.CanvasTexture(rankCanvas);
+        const rankMaterial = new THREE.MeshBasicMaterial({ 
+            map: rankTexture,
+            transparent: true
+        });
+        
+        const rankGeometry = new THREE.PlaneGeometry(0.4, 0.4);
+        const rankMesh = new THREE.Mesh(rankGeometry, rankMaterial);
+        rankMesh.position.set(-4, 0.4, i - 3.5);
+        rankMesh.rotation.x = -Math.PI / 2;
+        boardGroup.add(rankMesh);
+    }
 };
 
 // Creates a chess piece
