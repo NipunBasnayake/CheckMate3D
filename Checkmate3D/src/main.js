@@ -10,23 +10,30 @@ let playerColor = 'white';
 let currentTurn = 'white';
 let moveCount = 1;
 
-// Dynamin Record Notations
+// Create game info div as full-height sidebar
 const gameInfoDiv = document.createElement('div');
 gameInfoDiv.id = 'game-info';
 gameInfoDiv.innerHTML = `
-    <div id="turn-indicator">White's Turn</div>
-    <div id="move-history">
-        <h3>Move History</h3>
-        <div id="moves-container"></div>
-    </div>
-    <div id="captured-pieces" style="margin-top: 15px;">
-        <div id="white-captured" style="margin-bottom: 5px;"></div>
-        <div id="black-captured"></div>
-    </div>
-    <div id="game-status" style="margin-top: 15px; text-align: center;"></div>
-    <div style="display: flex; justify-content: space-between; margin-top: 15px;">
-        <button id="resign-button" style="padding: 5px 10px; background: #ff6b6b; color: white; border: none; border-radius: 5px; cursor: pointer;">Resign</button>
-        <button id="new-game-button" style="padding: 5px 10px; background: #64ffda; color: #0a192f; border: none; border-radius: 5px; cursor: pointer;">New Game</button>
+    <div class="game-controls">
+        <div id="turn-indicator">White's Turn</div>
+        <div id="game-status"></div>
+
+        <div id="captured-pieces">
+            <div class="captured-pieces-label">White Captured Pieces:</div>
+            <div id="white-captured"></div>
+            <div class="captured-pieces-label">Black Captured Pieces:</div>
+            <div id="black-captured"></div>
+        </div>
+        
+        <div id="move-history">
+            <h3>Move History</h3>
+            <div id="moves-container"></div>
+        </div>
+        
+        <div class="action-buttons">
+            <button id="resign-button">Resign</button>
+            <button id="new-game-button">New Game</button>
+        </div>
     </div>
 `;
 document.body.appendChild(gameInfoDiv);
@@ -48,6 +55,10 @@ const capturedPieces = {
     white: [],
     black: []
 };
+
+// Track the last moved pawn for en passant
+let lastMovedPawn = null;
+let enPassantTarget = null;
 
 document.getElementById('white-button').addEventListener('click', () => {
     playerColor = 'white';
@@ -88,6 +99,8 @@ function startGame() {
     stalemate = false;
     capturedPieces.white = [];
     capturedPieces.black = [];
+    lastMovedPawn = null;
+    enPassantTarget = null;
 
     turnIndicator.textContent = "White's Turn";
     movesContainer.innerHTML = '';
@@ -108,6 +121,8 @@ function resetGame() {
 
     selectedPiece = null;
     animationState = null;
+    lastMovedPawn = null;
+    enPassantTarget = null;
 
     setupLighting();
 }
@@ -138,7 +153,8 @@ const sounds = {
     moveSound: new THREE.Audio(audioListener),
     captureSound: new THREE.Audio(audioListener),
     checkSound: new THREE.Audio(audioListener),
-    invalidSound: new THREE.Audio(audioListener)
+    invalidSound: new THREE.Audio(audioListener),
+    castlingSound: new THREE.Audio(audioListener)
 };
 
 // Loads sound effects
@@ -204,6 +220,8 @@ const HIGHLIGHT_COLOR = new THREE.Color(0xffff00);
 const VALID_MOVE_COLOR = new THREE.Color(0x00ff00);
 const CAPTURE_COLOR = new THREE.Color(0xff0000);
 const CHECK_COLOR = new THREE.Color(0xff0000);
+const CASTLING_COLOR = new THREE.Color(0x0088ff);
+const EN_PASSANT_COLOR = new THREE.Color(0xff8800);
 const HIGHLIGHT_INTENSITY = 0.3;
 
 camera.position.set(0, 10, 10);
@@ -266,7 +284,7 @@ function setupLighting() {
 // Rotates the board
 function setBoardRotation() {
     if (playerColor === 'black') {
-        boardContainer.rotation.y = Math.PI*2;
+        boardContainer.rotation.y = Math.PI;
     } else {
         boardContainer.rotation.y = 0;
     }
@@ -279,6 +297,7 @@ const isValidPawnMove = (piece, currentPos, targetPos, dx, dz, targetPiece) => {
     const initialZ = color === 'white' ? 2.5 : -2.5;
     const isInitialMove = currentPos.z === initialZ;
 
+    // Regular pawn moves
     if (dx === 0) {
         if (dz === direction && !targetPiece) return true;
         if (dz === 2 * direction && isInitialMove) {
@@ -286,8 +305,18 @@ const isValidPawnMove = (piece, currentPos, targetPos, dx, dz, targetPiece) => {
             tempPos.z = currentPos.z + direction;
             return !getPieceAtPosition(tempPos) && !targetPiece;
         }
-    } else if (Math.abs(dx) === 1 && dz === direction) {
-        return !!targetPiece && targetPiece.userData.color !== color;
+    } 
+    // Diagonal captures
+    else if (Math.abs(dx) === 1 && dz === direction) {
+        // Regular capture
+        if (targetPiece && targetPiece.userData.color !== color) return true;
+        
+        // En passant capture
+        if (enPassantTarget && 
+            Math.abs(enPassantTarget.x - targetPos.x) < 0.1 && 
+            Math.abs(enPassantTarget.z - targetPos.z) < 0.1) {
+            return true;
+        }
     }
     return false;
 };
@@ -306,6 +335,141 @@ const isValidQueenMove = (dx, dz) => isValidBishopMove(dx, dz) || isValidRookMov
 
 // Validates king
 const isValidKingMove = (dx, dz) => Math.abs(dx) <= 1 && Math.abs(dz) <= 1;
+
+// Handle castling move
+const handleCastling = (king, targetPos) => {
+    // Only allow castling if the king hasn't moved yet
+    if (king.userData.hasMoved) return false;
+    
+    const color = king.userData.color;
+    const startingRow = color === 'white' ? 3.5 : -3.5;
+    
+    // King must be on starting position
+    if (king.userData.position.z !== startingRow || king.userData.position.x !== 0.5) return false;
+    
+    // Check if the king is in check
+    if (isKingInCheck(color)) return false;
+    
+    // Determine if it's kingside or queenside castling
+    const isKingside = targetPos.x > king.userData.position.x;
+    const rookX = isKingside ? 3.5 : -3.5;
+    
+    // Find the correct rook
+    const rook = pieces.find(piece => 
+        piece.userData.type === 'rook' && 
+        piece.userData.color === color && 
+        piece.userData.position.x === rookX && 
+        piece.userData.position.z === startingRow &&
+        !piece.userData.hasMoved
+    );
+    
+    // If no eligible rook found, castling is not possible
+    if (!rook) return false;
+    
+    // Check if the path between king and rook is clear
+    const direction = isKingside ? 1 : -1;
+    const distance = isKingside ? 2 : 3;
+    
+    for (let i = 1; i <= distance; i++) {
+        tempPos.x = king.userData.position.x + (i * direction);
+        tempPos.z = startingRow;
+        
+        // Path must be clear
+        if (getPieceAtPosition(tempPos)) return false;
+        
+        // For the squares the king moves through, check they're not under attack
+        if (i <= 2) {
+            king.userData.position = { x: tempPos.x, z: tempPos.z };
+            const wouldBeCheck = isKingInCheck(color);
+            king.userData.position = { x: 0.5, z: startingRow };
+            
+            if (wouldBeCheck) return false;
+        }
+    }
+    
+    // Perform the castling
+    const kingNewX = isKingside ? 2.5 : -1.5;
+    const rookNewX = isKingside ? 1.5 : -0.5;
+    
+    // Move the rook
+    rook.userData.position = { x: rookNewX, z: startingRow };
+    rook.userData.hasMoved = true;
+    
+    // Record the castling move
+    const notation = isKingside ? "O-O" : "O-O-O";
+    recordSpecialMove(notation, color);
+    
+    // Animate the rook move
+    animationState = {
+        piece: rook,
+        startPos: new THREE.Vector3(rook.position.x, rook.position.y, rook.position.z),
+        targetPos: new THREE.Vector3(rookNewX, rook.position.y, startingRow),
+        progress: 0,
+        duration: 500,
+        startTime: Date.now(),
+        captureOccurred: false,
+        isCastling: true
+    };
+    
+    // Return true to indicate successful castling
+    return true;
+};
+
+// Record a special move (castling, etc) in the move history
+const recordSpecialMove = (notation, color) => {
+    if (color === 'white') {
+        const moveRow = document.createElement('div');
+        moveRow.className = 'move-row';
+        moveRow.innerHTML = `
+            <div class="move-entry">
+                <span class="move-number">${moveCount}.</span>
+                <span class="white-move">${notation}</span>
+                <span class="black-move"></span>
+            </div>
+        `;
+        movesContainer.appendChild(moveRow);
+    } else {
+        const moveRows = movesContainer.querySelectorAll('.move-entry');
+        const lastRow = moveRows[moveRows.length - 1];
+        if (lastRow) {
+            lastRow.querySelector('.black-move').textContent = notation;
+            moveCount++;
+        }
+    }
+    
+    movesContainer.scrollTop = movesContainer.scrollHeight;
+};
+
+// Perform the en passant capture
+const handleEnPassantCapture = (piece, targetPos) => {
+    if (!enPassantTarget) return false;
+    
+    if (Math.abs(enPassantTarget.x - targetPos.x) < 0.1 && 
+        Math.abs(enPassantTarget.z - targetPos.z) < 0.1) {
+        
+        // Find and remove the pawn that's being captured
+        const capturedPawnPos = { 
+            x: targetPos.x, 
+            z: piece.userData.position.z 
+        };
+        
+        const capturedPawn = getPieceAtPosition(capturedPawnPos);
+        if (capturedPawn && capturedPawn.userData.type === 'pawn') {
+            capturedPieces[capturedPawn.userData.color].push(capturedPawn.userData.type);
+            updateCapturedPiecesDisplay();
+            
+            boardContainer.remove(capturedPawn);
+            const index = pieces.indexOf(capturedPawn);
+            if (index > -1) {
+                pieces.splice(index, 1);
+            }
+            
+            return true;
+        }
+    }
+    
+    return false;
+};
 
 // Is path clear
 const isPathClear = (currentPos, targetPos) => {
@@ -350,6 +514,20 @@ const getSquareAtPosition = position => {
     return null;
 };
 
+// Check if castling is possible at the target position
+const canCastleTo = (king, targetPos) => {
+    if (king.userData.type !== 'king' || king.userData.hasMoved) return false;
+    
+    const kingPos = king.userData.position;
+    const dx = targetPos.x - kingPos.x;
+    
+    // Must be horizontal movement of 2 squares
+    if (Math.abs(dx) !== 2 || targetPos.z !== kingPos.z) return false;
+    
+    // Create a theoretical target for handleCastling
+    return handleCastling(king, targetPos);
+};
+
 // Is given move valid
 const isValidMove = (piece, targetPos) => {
     if (piece.userData.color !== currentTurn) return false;
@@ -360,6 +538,11 @@ const isValidMove = (piece, targetPos) => {
     const targetPiece = getPieceAtPosition(targetPos);
 
     if (targetPiece?.userData.color === piece.userData.color) return false;
+
+    // Check for castling
+    if (piece.userData.type === 'king' && Math.abs(dx) === 2 && dz === 0) {
+        return canCastleTo(piece, targetPos);
+    }
 
     let isValid = false;
     switch (piece.userData.type) {
@@ -711,12 +894,32 @@ const highlightValidMoves = (piece) => {
         mat.emissive.copy(square.userData.originalEmissive);
         mat.emissiveIntensity = square.userData.originalEmissiveIntensity;
 
-        if (isValidMove(piece, square.position)) {
+        // Check for castling
+        if (piece.userData.type === 'king' && !piece.userData.hasMoved) {
+            const dx = square.position.x - piece.userData.position.x;
+            if (Math.abs(dx) === 2 && square.position.z === piece.userData.position.z) {
+                if (canCastleTo(piece, square.position)) {
+                    validMovesFound = true;
+                    mat.emissive = CASTLING_COLOR.clone();
+                    mat.emissiveIntensity = HIGHLIGHT_INTENSITY;
+                }
+            }
+        }
+        
+        // Regular moves
+        else if (isValidMove(piece, square.position)) {
             validMovesFound = true;
             const targetPiece = getPieceAtPosition(square.position);
 
             if (targetPiece) {
                 mat.emissive = CAPTURE_COLOR.clone();
+            } else if (piece.userData.type === 'pawn' && 
+                       square.position.x !== piece.userData.position.x && 
+                       enPassantTarget && 
+                       Math.abs(enPassantTarget.x - square.position.x) < 0.1 &&
+                       Math.abs(enPassantTarget.z - square.position.z) < 0.1) {
+                // Highlight en passant capture
+                mat.emissive = EN_PASSANT_COLOR.clone();
             } else {
                 mat.emissive = VALID_MOVE_COLOR.clone();
             }
@@ -804,13 +1007,38 @@ const movePiece = (piece, targetPos) => {
     const toSquare = getSquareName(targetPos);
 
     console.log(`Moving ${piece.userData.name} from ${fromSquare} to ${toSquare}`);
-
-    const targetPiece = getPieceAtPosition(targetPos);
     let captureOccurred = false;
-
+    let capturedType = null;
+    
+    // Check if we're making a castling move
+    const isCastling = piece.userData.type === 'king' && Math.abs(targetPos.x - currentPos.x) === 2;
+    if (isCastling) {
+        if (handleCastling(piece, targetPos)) {
+            // The king's move will be handled below, the rook's move is handled by handleCastling
+        } else {
+            console.log("Castling failed");
+            return;
+        }
+    }
+    
+    // Check for en passant capture
+    let isEnPassantCapture = false;
+    if (piece.userData.type === 'pawn' && 
+        currentPos.x !== targetPos.x && 
+        !getPieceAtPosition(targetPos)) {
+        isEnPassantCapture = handleEnPassantCapture(piece, targetPos);
+        if (isEnPassantCapture) {
+            captureOccurred = true;
+            capturedType = 'pawn';
+        }
+    }
+    
+    // Regular capture
+    const targetPiece = getPieceAtPosition(targetPos);
     if (targetPiece) {
         console.log(`Capturing ${targetPiece.userData.name}`);
         captureOccurred = true;
+        capturedType = targetPiece.userData.type;
 
         capturedPieces[targetPiece.userData.color].push(targetPiece.userData.type);
         updateCapturedPiecesDisplay();
@@ -822,10 +1050,31 @@ const movePiece = (piece, targetPos) => {
         }
     }
 
+    // Clear en passant target after the move
+    const prevEnPassantTarget = enPassantTarget;
+    enPassantTarget = null;
+    
+    // Set new en passant target if this is a two-square pawn move
+    if (piece.userData.type === 'pawn') {
+        const direction = piece.userData.color === 'white' ? -1 : 1;
+        const initialZ = piece.userData.color === 'white' ? 2.5 : -2.5;
+        
+        if (currentPos.z === initialZ && 
+            Math.abs(targetPos.z - currentPos.z) === 2) {
+            // Set the en passant target square behind the pawn
+            enPassantTarget = { 
+                x: targetPos.x, 
+                z: targetPos.z - direction 
+            };
+            lastMovedPawn = piece;
+        }
+    }
+
     piece.userData.position = { x: targetPos.x, z: targetPos.z };
     piece.userData.name = `${piece.userData.color} ${piece.userData.type} ${toSquare}`;
     piece.userData.hasMoved = true;
 
+    // Handle pawn promotion
     if (piece.userData.type === 'pawn') {
         const endRank = piece.userData.color === 'white' ? -3.5 : 3.5;
         if (targetPos.z === endRank) {
@@ -840,10 +1089,14 @@ const movePiece = (piece, targetPos) => {
         progress: 0,
         duration: 500,
         startTime: Date.now(),
-        captureOccurred: captureOccurred
+        captureOccurred: captureOccurred,
+        isCastling: isCastling,
+        isEnPassantCapture: isEnPassantCapture
     };
 
-    recordMove(piece, fromSquare, toSquare, captureOccurred, targetPiece?.userData.type);
+    if (!isCastling) { // Castling notation is already recorded in handleCastling
+        recordMove(piece, fromSquare, toSquare, captureOccurred, capturedType, isEnPassantCapture);
+    }
 
     const oppositeColor = currentTurn === 'white' ? 'black' : 'white';
 
@@ -885,7 +1138,7 @@ const movePiece = (piece, targetPos) => {
     deselectPiece();
 };
 
-const recordMove = (piece, fromSquare, toSquare, captureOccurred, capturedType) => {
+const recordMove = (piece, fromSquare, toSquare, captureOccurred, capturedType, isEnPassantCapture = false) => {
     const color = piece.userData.color;
     const pieceType = piece.userData.type;
 
@@ -905,6 +1158,19 @@ const recordMove = (piece, fromSquare, toSquare, captureOccurred, capturedType) 
     }
 
     moveText += toSquare;
+    
+    // Add en passant notation
+    if (isEnPassantCapture) {
+        moveText += ' e.p.';
+    }
+
+    // Add promotion notation (assuming queen promotion for simplicity)
+    if (pieceType === 'pawn') {
+        const lastRank = color === 'white' ? '8' : '1';
+        if (toSquare.charAt(1) === lastRank) {
+            moveText += '=Q';
+        }
+    }
 
     if (checkmate) {
         moveText += '#';
@@ -936,8 +1202,8 @@ const recordMove = (piece, fromSquare, toSquare, captureOccurred, capturedType) 
 };
 
 const updateCapturedPiecesDisplay = () => {
-    whiteCapturedDiv.innerHTML = '<strong>White Captured:</strong> ';
-    blackCapturedDiv.innerHTML = '<strong>Black Captured:</strong> ';
+    whiteCapturedDiv.innerHTML = '';
+    blackCapturedDiv.innerHTML = '';
 
     const sortByValue = (a, b) => pieceValues[b] - pieceValues[a];
 
@@ -1020,6 +1286,8 @@ const updateAnimations = (deltaTime) => {
 
             if (animationState.captureOccurred) {
                 console.log("Capture sound would play here");
+            } else if (animationState.isCastling) {
+                console.log("Castling sound would play here");
             } else {
                 console.log("Move sound would play here");
             }
