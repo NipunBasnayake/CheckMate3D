@@ -12,13 +12,32 @@
 </head>
 
 <body>
+  <div id="mode-selection-screen">
+    <h1>CheckMate 3D</h1>
+    <p>Select your game mode</p>
+    <div class="mode-buttons">
+      <button class="mode-button" id="multiplayer-button">Play with Friend</button>
+      <button class="mode-button" id="ai-button">Play with AI</button>
+    </div>
+  </div>
+
   <div id="welcome-screen">
     <h1>CheckMate 3D</h1>
-    <p>Choose your playing color</p>
+    <p id="color-selection-text">Choose your playing color</p>
+    <div id="engine-strength-container">
+      <label for="engine-strength">Engine Strength</label>
+      <select id="engine-strength">
+        <option value="easy">Beginner</option>
+        <option value="medium" selected>Intermediate</option>
+        <option value="hard">Advanced</option>
+        <option value="expert">Expert</option>
+      </select>
+    </div>
     <div class="color-buttons">
       <button class="color-button" id="white-button">White</button>
       <button class="color-button" id="black-button">Black</button>
     </div>
+    <button class="back-button" id="back-to-mode">← Back</button>
   </div>
 
   <div id="loading-screen">
@@ -26,7 +45,37 @@
     <div id="loading-text">Loading 3D Assets...</div>
   </div>
 
-  <canvas class="threejs"></canvas>
+  <div id="game-mode-indicator">
+    Mode: <span>Multiplayer</span>
+  </div>
+
+  <div id="game-container">
+    <canvas class="threejs"></canvas>
+  
+    <div id="game-info">
+      <div class="game-controls">
+        <div id="turn-indicator">White's Turn</div>
+        <div id="game-status"></div>
+
+        <div id="captured-pieces">
+          <div class="captured-pieces-label">White Captured Pieces:</div>
+          <div id="white-captured"></div>
+          <div class="captured-pieces-label">Black Captured Pieces:</div>
+          <div id="black-captured"></div>
+        </div>
+        
+        <div id="move-history">
+          <h3>Move History</h3>
+          <div id="moves-container"></div>
+        </div>
+        
+        <div class="action-buttons">
+          <button id="resign-button">Resign</button>
+          <button id="new-game-button">New Game</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="src/main.js"></script>
 </body>
