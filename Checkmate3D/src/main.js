@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { update } from 'three/examples/jsm/libs/tween.module.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -26,6 +27,7 @@ const CASTLING_COLOR = new THREE.Color(0x0088ff);
 const EN_PASSANT_COLOR = new THREE.Color(0xff8800);
 const HIGHLIGHT_INTENSITY = 0.3;
 
+const textureLoader = new THREE.TextureLoader();
 const welcomeScreen = document.getElementById('welcome-screen');
 const loadingScreen = document.getElementById('loading-screen');
 const loadingText = document.getElementById('loading-text');
@@ -261,9 +263,14 @@ controls.dampingFactor = 0.05;
 controls.minDistance = 8;
 controls.maxDistance = 15;
 controls.maxPolarAngle = Math.PI / 2.2;
+controls.minPolarAngle = Math.PI / 6;
 controls.autoRotate = false;
 controls.autoRotateSpeed = 0.5;
 controls.enablePan = false;
+controls.enableRotate = true;
+controls.rotateSpeed = 0.7;
+controls.minAzimuthAngle = 0;
+controls.maxAzimuthAngle = 0;
 
 const squares = [];
 const pieces = [];
@@ -272,6 +279,35 @@ const mouse = new THREE.Vector2();
 const loader = new GLTFLoader();
 const tempVec3 = new THREE.Vector3();
 const tempPos = { x: 0, z: 0 };
+
+let boardFlipped = false;
+
+function flipBoard() {
+  boardFlipped = !boardFlipped;
+  
+  const flipButton = document.getElementById('flip-board-button');
+  if (boardFlipped) {
+    flipButton.classList.add('flipped');
+  } else {
+    flipButton.classList.remove('flipped');
+  }
+  
+  const cameraHeight = camera.position.y;
+  const cameraDistance = Math.sqrt(
+    camera.position.z * camera.position.z + 
+    camera.position.x * camera.position.x
+  );
+  
+  if (boardFlipped) {
+    camera.position.z = -cameraDistance;
+    boardContainer.rotation.y = Math.PI;
+  } else {
+    camera.position.z = cameraDistance;
+    boardContainer.rotation.y = 0;
+  }
+  camera.lookAt(0, 0, 0);
+  controls.update();
+}
 
 const materialCache = {
     dark: new THREE.MeshStandardMaterial({
@@ -387,6 +423,8 @@ function startGame() {
         : `Mode: <span>Multiplayer</span>`;
     gameModeIndicator.style.display = 'block';
 
+    updateFlipButtonState();
+
     initializeGame();
     
     if (gameMode === 'engine' && playerColor === 'black') {
@@ -468,11 +506,24 @@ function initializeGame() {
     });
 }
 
+function updateFlipButtonState() {
+    boardFlipped = false;
+    const flipButton = document.getElementById('flip-board-button');
+    if (flipButton) {
+      flipButton.classList.remove('flipped');
+    }
+  }
+
 function setupEventListeners() {
     window.addEventListener('resize', onWindowResize, false);
     window.addEventListener('mousedown', onMouseDown, false);
     window.addEventListener('touchstart', onTouchStart, false);
-}
+    
+    const flipBoardButton = document.getElementById('flip-board-button');
+    if (flipBoardButton) {
+      flipBoardButton.addEventListener('click', flipBoard);
+    }
+  }
 
 async function loadGameAssets() {
     try {
@@ -521,12 +572,12 @@ function setCameraPosition() {
 }
 
 function setBoardRotation() {
-    if (playerColor === 'black') {
-        boardContainer.rotation.y = Math.PI*2;
+    if (playerColor === 'black' && !boardFlipped || playerColor === 'white' && boardFlipped) {
+      boardContainer.rotation.y = Math.PI;
     } else {
-        boardContainer.rotation.y = 0;
+      boardContainer.rotation.y = 0;
     }
-}
+  }
 
 function setupLighting() {
     scene.children.forEach(child => {
@@ -619,20 +670,53 @@ function loadChessboard() {
     loadingText.textContent = "Creating chessboard...";
     return new Promise((resolve) => {
         const boardGroup = new THREE.Group();
-        const boardGeometry = new THREE.BoxGeometry(8, 0.2, 8);
-        const boardMaterial = new THREE.MeshStandardMaterial({ color: 0x6D4C41 });
+        const boardGeometry = new THREE.BoxGeometry(9, 0.2, 9);
+        
+        const boardTexture = textureLoader.load('assets/textures/wood-frame.jpg', () => {
+        });
+        boardTexture.wrapS = boardTexture.wrapT = THREE.RepeatWrapping;
+        boardTexture.repeat.set(1, 1);
+        
+        const boardNormalMap = textureLoader.load('assets/textures/wood-normal.jpg');
+        boardNormalMap.wrapS = boardNormalMap.wrapT = THREE.RepeatWrapping;
+        boardNormalMap.repeat.set(1, 1);
+        
+        const boardRoughnessMap = textureLoader.load('assets/textures/wood-roughness.jpg');
+        
+        const boardMaterial = new THREE.MeshStandardMaterial({ 
+            map: boardTexture,
+            normalMap: boardNormalMap,
+            normalScale: new THREE.Vector2(0.5, 0.5),
+            roughnessMap: boardRoughnessMap,
+            roughness: 0.7,
+            metalness: 0.1,
+            envMapIntensity: 0.8
+        });
+        
         const board = new THREE.Mesh(boardGeometry, boardMaterial);
         board.receiveShadow = true;
         boardGroup.add(board);
-
+        
+        const lightSquareTexture = textureLoader.load('assets/textures/marble-light.jpg');
+        const darkSquareTexture = textureLoader.load('assets/textures/marble-dark.jpg');
+        
+        const lightSquareNormal = textureLoader.load('assets/textures/marble-light-normal.jpg');
+        const darkSquareNormal = textureLoader.load('assets/textures/marble-dark-normal.jpg');
+        
         for (let x = -3.5; x <= 3.5; x++) {
             for (let z = -3.5; z <= 3.5; z++) {
                 const isWhite = (Math.floor(x + 3.5) + Math.floor(z + 3.5)) % 2 === 0;
                 
                 const squareGeometry = new THREE.BoxGeometry(0.995, 0.1, 0.995);
+                
                 const squareMaterial = new THREE.MeshStandardMaterial({
-                    color: isWhite ? 0xF0D9B5 : 0xB58863,
-                    emissive: new THREE.Color(0x000000)
+                    map: isWhite ? lightSquareTexture : darkSquareTexture,
+                    normalMap: isWhite ? lightSquareNormal : darkSquareNormal,
+                    normalScale: new THREE.Vector2(0.3, 0.3),
+                    roughness: isWhite ? 0.4 : 0.5,
+                    metalness: 0.1,
+                    clearcoat: 0.3,
+                    clearcoatRoughness: 0.5
                 });
 
                 const square = new THREE.Mesh(squareGeometry, squareMaterial);
@@ -653,9 +737,67 @@ function loadChessboard() {
             }
         }
 
+        if (scene.environment) {
+            boardMaterial.envMap = scene.environment;
+            squares.forEach(square => {
+                square.material.envMap = scene.environment;
+            });
+        }
+
+        const edgeLightIntensity = 0.4;
+        const cornerLight1 = new THREE.PointLight(0xFFFFFF, edgeLightIntensity, 5);
+        cornerLight1.position.set(4.5, 0.8, 4.5);
+        boardGroup.add(cornerLight1);
+        
+        const cornerLight2 = new THREE.PointLight(0xFFFFFF, edgeLightIntensity, 5);
+        cornerLight2.position.set(-4.5, 0.8, -4.5);
+        boardGroup.add(cornerLight2);
+
         boardContainer.add(boardGroup);
         resolve();
     });
+}
+
+function applyPieceMaterial(model, color) {
+    const baseTexture = textureLoader.load(`assets/textures/${color}-piece-base.jpg`);
+    const normalMap = textureLoader.load(`assets/textures/${color}-piece-normal.jpg`);
+    const roughnessMap = textureLoader.load(`assets/textures/${color}-piece-roughness.jpg`);
+    
+    model.traverse((child) => {
+        if (child.isMesh && child.material) {
+            if (Array.isArray(child.material)) {
+                child.material.forEach(mat => {
+                    configureMaterial(mat, color, baseTexture, normalMap, roughnessMap);
+                });
+            } else {
+                configureMaterial(child.material, color, baseTexture, normalMap, roughnessMap);
+            }
+        }
+    });
+}
+
+function configureMaterial(material, color, baseTexture, normalMap, roughnessMap) {
+    material.map = baseTexture;
+    material.normalMap = normalMap;
+    material.normalScale = new THREE.Vector2(0.7, 0.7);
+    material.roughnessMap = roughnessMap;
+    
+    if (color === 'white') {
+        material.roughness = 0.2;
+        material.metalness = 0.1;  
+        material.clearcoat = 1.0;       
+        material.clearcoatRoughness = 0.1;
+        material.envMapIntensity = 1.5;    
+    } else {
+        material.roughness = 0.2;
+        material.metalness = 0.2;
+        material.clearcoat = 1.0;
+        material.clearcoatRoughness = 0.1;
+        material.envMapIntensity = 1.2;
+    }
+    
+    material.emissive = new THREE.Color(color === 'white' ? 0x333333 : 0x222222);
+    material.emissiveIntensity = 0.03;
 }
 
 function createPiece(type, color, position) {
@@ -664,32 +806,13 @@ function createPiece(type, color, position) {
         const modelPath = `assets/models/Pieces/${modelName}.glb`;
         const yPosition = 0.25;
 
-        const customColors = {
-                white: 0xFFF5E6, 
-                black: 0x2D2926   
-        };
-
         loader.load(
             modelPath,
             (gltf) => {
                 const model = gltf.scene;
                 model.castShadow = true;
 
-                model.traverse((child) => {
-                    if (child.isMesh && child.material) {
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(mat => {
-                                mat.color.setHex(customColors[color]);
-                                mat.metalness = color === 'white' ? 0.1 : 0.2;
-                                mat.roughness = color === 'white' ? 0.7 : 0.8;
-                            });
-                        } else {
-                            child.material.color.setHex(customColors[color]);
-                            child.material.metalness = color === 'white' ? 0.1 : 0.2;
-                            child.material.roughness = color === 'white' ? 0.7 : 0.8;
-                        }
-                    }
-                });
+                applyPieceMaterial(model, color);
 
                 model.scale.set(0.85, 0.85, 0.85);
                 model.position.set(position.x, yPosition, position.z);
@@ -723,78 +846,8 @@ function createPiece(type, color, position) {
             },
             (error) => {
                 console.warn(`Failed to load ${color} ${type} model:`, error);
-                fallbackToSimpleGeometry(type, color, position).then(resolve);
             }
         );
-    });
-}
-
-function fallbackToSimpleGeometry(type, color, position) {
-    return new Promise((resolve) => {
-        let geometry;
-        let height = 1;
-
-        const customColors = {
-            white: 0xFFF5E6,  
-            black: 0x2D2926   
-        };
-
-        switch (type) {
-            case 'pawn':
-                geometry = new THREE.ConeGeometry(0.2, 0.5, 8);
-                height = 0.5;
-                break;
-            case 'rook':
-                geometry = new THREE.BoxGeometry(0.3, 0.7, 0.3);
-                height = 0.7;
-                break;
-            case 'knight':
-                geometry = new THREE.TorusGeometry(0.2, 0.1, 8, 12);
-                height = 0.7;
-                break;
-            case 'bishop':
-                geometry = new THREE.ConeGeometry(0.2, 0.8, 8);
-                height = 0.8;
-                break;
-            case 'queen':
-                geometry = new THREE.DodecahedronGeometry(0.3);
-                height = 0.9;
-                break;
-            case 'king':
-                geometry = new THREE.CylinderGeometry(0.2, 0.2, 1, 8);
-                height = 1;
-                break;
-        }
-
-        const material = new THREE.MeshStandardMaterial({
-            color: customColors[color],
-            metalness: color === 'white' ? 0.1 : 0.2,
-            roughness: color === 'white' ? 0.7 : 0.8,
-            emissive: new THREE.Color(0x000000)
-        });
-
-        const model = new THREE.Mesh(geometry, material);
-        model.castShadow = true;
-        model.position.set(position.x, height / 2, position.z);
-
-        model.userData = {
-            type, 
-            color,
-            originalY: height / 2,
-            position: { x: position.x, z: position.z },
-            name: `${color} ${type} ${getSquareName(position)}`,
-            hasMoved: false
-        };
-
-        model.material.userData = {
-            originalEmissive: new THREE.Color(0x000000),
-            originalEmissiveIntensity: 0
-        };
-
-        boardContainer.add(model);
-        pieces.push(model);
-        console.log(`Created fallback ${color} ${type} at ${getSquareName(position)}`);
-        resolve();
     });
 }
 
