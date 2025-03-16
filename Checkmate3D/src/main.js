@@ -52,6 +52,16 @@ const capturedPieces = { white: [], black: [] };
 
 let stockfishEngine = null;
 
+// Utility function to play sounds properly
+function playSound(sound) {
+    if (sound && sound.buffer) {
+        // Clone the sound to allow multiple instances to play simultaneously
+        const soundInstance = sound.clone();
+        soundInstance.setVolume(sound.getVolume());
+        soundInstance.play();
+    }
+}
+
 function initStockfish() {
     console.log("Mock Stockfish engine initialized");
     stockfishEngine = {
@@ -1248,9 +1258,7 @@ function movePiece(piece, targetPos) {
         console.log(`${oppositeColor} is in check!`);
         highlightKingInCheck(oppositeColor);
 
-        if (sounds.checkSound && sounds.checkSound.buffer) {
-            sounds.checkSound.play();
-        }
+        playSound(sounds.checkSound);
 
         checkmate = checkForCheckmate(oppositeColor);
         if (checkmate) {
@@ -1911,17 +1919,11 @@ function updateAnimations(deltaTime) {
             animationState.piece.position.y = animationState.piece.userData.originalY || 0;
 
             if (animationState.captureOccurred) {
-                if (sounds.captureSound.buffer) {
-                    sounds.captureSound.play();
-                }
+                playSound(sounds.captureSound);
             } else if (animationState.isCastling) {
-                if (sounds.castlingSound.buffer) {
-                    sounds.castlingSound.play();
-                }
+                playSound(sounds.castlingSound);
             } else {
-                if (sounds.moveSound.buffer) {
-                    sounds.moveSound.play();
-                }
+                playSound(sounds.moveSound);
             }
 
             animationState = null;
@@ -1993,9 +1995,7 @@ function checkInteraction() {
                     console.log(`Capturing ${pieceParent.userData.name} with ${selectedPiece.userData.name}`);
                     movePiece(selectedPiece, pieceParent.userData.position);
                 } else {
-                    if (sounds.invalidSound.buffer) {
-                        sounds.invalidSound.play();
-                    }
+                    playSound(sounds.invalidSound);
                     console.log("Invalid capture move");
                 }
                 return;
@@ -2018,9 +2018,7 @@ function checkInteraction() {
             if (isValidMove(selectedPiece, square.position)) {
                 movePiece(selectedPiece, square.position);
             } else {
-                if (sounds.invalidSound.buffer) {
-                    sounds.invalidSound.play();
-                }
+                playSound(sounds.invalidSound);
                 console.log("Invalid move to", square.userData.name);
             }
         } else {
