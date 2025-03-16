@@ -55,9 +55,9 @@ let stockfishEngine = null;
 function initStockfish() {
     console.log("Mock Stockfish engine initialized");
     stockfishEngine = {
-        postMessage: function(message) {
+        postMessage: function (message) {
             console.log("Message to Stockfish:", message);
-            
+
             if (message.startsWith('go depth')) {
                 setTimeout(() => {
                     const moves = getAllPossibleMoves(currentTurn);
@@ -66,7 +66,7 @@ function initStockfish() {
                         const piece = selectedMove.piece;
                         const from = getSquareName(piece.userData.position);
                         const to = getSquareName(selectedMove.targetPos);
-                        
+
                         handleStockfishMessage({
                             data: `bestmove ${from[0]}${from[1]}${to[0]}${to[1]}`
                         });
@@ -85,30 +85,30 @@ function handleStockfishMessage(event) {
             console.log("Stockfish could not find a move");
             return;
         }
-        
+
         const fromSquare = moveStr.substring(0, 2);
         const toSquare = moveStr.substring(2, 4);
-        
+
         console.log(`Engine wants to move from ${fromSquare} to ${toSquare}`);
-        
+
         const fromX = FILES.indexOf(fromSquare[0]) - 3.5;
         const fromZ = RANKS.indexOf(fromSquare[1]) - 3.5;
         const toX = FILES.indexOf(toSquare[0]) - 3.5;
         const toZ = RANKS.indexOf(toSquare[1]) - 3.5;
-        
-        const piece = getPieceAtPosition({x: fromX, z: fromZ});
+
+        const piece = getPieceAtPosition({ x: fromX, z: fromZ });
         if (piece) {
             console.log(`Found engine piece to move: ${piece.userData.name}`);
-            
-            const targetPiece = getPieceAtPosition({x: toX, z: toZ});
+
+            const targetPiece = getPieceAtPosition({ x: toX, z: toZ });
             if (targetPiece) {
                 console.log(`Engine will capture ${targetPiece.userData.name}`);
             }
-            
-            movePiece(piece, {x: toX, z: toZ});
+
+            movePiece(piece, { x: toX, z: toZ });
         } else {
             console.error(`Could not find piece at ${fromSquare} (${fromX}, ${fromZ})`);
-            
+
             const possibleMoves = getAllPossibleMoves(currentTurn);
             if (possibleMoves.length > 0) {
                 const randomMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
@@ -121,88 +121,88 @@ function handleStockfishMessage(event) {
 
 function boardToFEN() {
     let fen = '';
-    
+
     for (let rankIndex = 0; rankIndex < 8; rankIndex++) {
         let emptySquares = 0;
-        
+
         for (let fileIndex = 0; fileIndex < 8; fileIndex++) {
             const x = fileIndex - 3.5;
             const z = rankIndex - 3.5;
-            
-            const piece = getPieceAtPosition({x, z});
-            
+
+            const piece = getPieceAtPosition({ x, z });
+
             if (piece) {
                 if (emptySquares > 0) {
                     fen += emptySquares;
                     emptySquares = 0;
                 }
-                
+
                 let pieceLetter = piece.userData.type[0];
                 if (piece.userData.type === 'knight') pieceLetter = 'n';
-                
+
                 fen += piece.userData.color === 'white' ? pieceLetter.toUpperCase() : pieceLetter;
             } else {
                 emptySquares++;
             }
         }
-        
+
         if (emptySquares > 0) {
             fen += emptySquares;
         }
-        
+
         if (rankIndex < 7) {
             fen += '/';
         }
     }
-    
+
     fen += ' ' + (currentTurn === 'white' ? 'w' : 'b');
-    
+
     let castlingStr = '';
     const whiteKing = findKing('white');
     const blackKing = findKing('black');
-    
+
     if (whiteKing && !whiteKing.userData.hasMoved) {
-        const kingsideRook = pieces.find(p => 
-            p.userData.type === 'rook' && 
-            p.userData.color === 'white' && 
-            p.userData.position.x === 3.5 && 
+        const kingsideRook = pieces.find(p =>
+            p.userData.type === 'rook' &&
+            p.userData.color === 'white' &&
+            p.userData.position.x === 3.5 &&
             p.userData.position.z === 3.5 &&
             !p.userData.hasMoved
         );
-        const queensideRook = pieces.find(p => 
-            p.userData.type === 'rook' && 
-            p.userData.color === 'white' && 
-            p.userData.position.x === -3.5 && 
+        const queensideRook = pieces.find(p =>
+            p.userData.type === 'rook' &&
+            p.userData.color === 'white' &&
+            p.userData.position.x === -3.5 &&
             p.userData.position.z === 3.5 &&
             !p.userData.hasMoved
         );
-        
+
         if (kingsideRook) castlingStr += 'K';
         if (queensideRook) castlingStr += 'Q';
     }
-    
+
     if (blackKing && !blackKing.userData.hasMoved) {
-        const kingsideRook = pieces.find(p => 
-            p.userData.type === 'rook' && 
-            p.userData.color === 'black' && 
-            p.userData.position.x === 3.5 && 
+        const kingsideRook = pieces.find(p =>
+            p.userData.type === 'rook' &&
+            p.userData.color === 'black' &&
+            p.userData.position.x === 3.5 &&
             p.userData.position.z === -3.5 &&
             !p.userData.hasMoved
         );
-        const queensideRook = pieces.find(p => 
-            p.userData.type === 'rook' && 
-            p.userData.color === 'black' && 
-            p.userData.position.x === -3.5 && 
+        const queensideRook = pieces.find(p =>
+            p.userData.type === 'rook' &&
+            p.userData.color === 'black' &&
+            p.userData.position.x === -3.5 &&
             p.userData.position.z === -3.5 &&
             !p.userData.hasMoved
         );
-        
+
         if (kingsideRook) castlingStr += 'k';
         if (queensideRook) castlingStr += 'q';
     }
-    
+
     fen += ' ' + (castlingStr || '-');
-    
+
     if (enPassantTarget) {
         const file = FILES[Math.round(enPassantTarget.x + 3.5)];
         const rank = RANKS[Math.round(enPassantTarget.z + 3.5)];
@@ -210,11 +210,11 @@ function boardToFEN() {
     } else {
         fen += ' -';
     }
-    
+
     fen += ' 0';
-    
+
     fen += ' ' + Math.ceil(moveCount / 2);
-    
+
     return fen;
 }
 
@@ -281,32 +281,64 @@ const tempVec3 = new THREE.Vector3();
 const tempPos = { x: 0, z: 0 };
 
 let boardFlipped = false;
+let flipAnimationState = null;
+const FLIP_ANIMATION_DURATION = 1000;
 
 function flipBoard() {
-  boardFlipped = !boardFlipped;
-  
-  const flipButton = document.getElementById('flip-board-button');
-  if (boardFlipped) {
-    flipButton.classList.add('flipped');
-  } else {
-    flipButton.classList.remove('flipped');
-  }
-  
-  const cameraHeight = camera.position.y;
-  const cameraDistance = Math.sqrt(
-    camera.position.z * camera.position.z + 
-    camera.position.x * camera.position.x
-  );
-  
-  if (boardFlipped) {
-    camera.position.z = -cameraDistance;
-    boardContainer.rotation.y = Math.PI;
-  } else {
-    camera.position.z = cameraDistance;
-    boardContainer.rotation.y = 0;
-  }
-  camera.lookAt(0, 0, 0);
-  controls.update();
+    if (flipAnimationState) return;
+    boardFlipped = !boardFlipped;
+
+    const flipButton = document.getElementById('flip-board-button');
+    if (boardFlipped) {
+        flipButton.classList.add('flipped');
+    } else {
+        flipButton.classList.remove('flipped');
+    }
+
+    const startCameraZ = camera.position.z;
+    const targetCameraZ = -startCameraZ;
+    const startBoardRotation = boardContainer.rotation.y;
+    const targetBoardRotation = boardFlipped ? Math.PI : 0;
+
+    flipAnimationState = {
+        startTime: Date.now(),
+        duration: FLIP_ANIMATION_DURATION,
+        startCameraZ: startCameraZ,
+        targetCameraZ: targetCameraZ,
+        startBoardRotation: startBoardRotation,
+        targetBoardRotation: targetBoardRotation
+    };
+
+    if (sounds.moveSound && sounds.moveSound.buffer) {
+        const flipSound = sounds.moveSound.clone();
+        flipSound.setVolume(0.3);
+        flipSound.play();
+    }
+}
+
+function updateFlipAnimation(deltaTime) {
+    if (!flipAnimationState) return;
+
+    const now = Date.now();
+    const elapsed = now - flipAnimationState.startTime;
+    const progress = Math.min(elapsed / flipAnimationState.duration, 1);
+
+    const easedProgress = Math.sin(progress * Math.PI / 2); 
+
+    camera.position.z = flipAnimationState.startCameraZ +
+        (flipAnimationState.targetCameraZ - flipAnimationState.startCameraZ) * easedProgress;
+
+    boardContainer.rotation.y = flipAnimationState.startBoardRotation +
+        (flipAnimationState.targetBoardRotation - flipAnimationState.startBoardRotation) * easedProgress;
+
+    camera.lookAt(0, 0, 0);
+    controls.update();
+
+    if (progress >= 1) {
+        camera.position.z = flipAnimationState.targetCameraZ;
+        boardContainer.rotation.y = flipAnimationState.targetBoardRotation;
+        flipAnimationState = null;
+    }
 }
 
 const materialCache = {
@@ -353,7 +385,7 @@ aiButton.addEventListener('click', () => {
     welcomeScreen.style.display = 'flex';
     engineStrengthContainer.style.display = 'block';
     colorSelectionText.textContent = 'Choose your playing color against the Engine';
-    
+
     initStockfish();
 });
 
@@ -389,7 +421,7 @@ resignButton.addEventListener('click', () => {
 
 newGameButton.addEventListener('click', () => {
     completeReset();
-    
+
     welcomeScreen.style.display = 'none';
     modeSelectionScreen.style.display = 'flex';
     gameInfoDiv.style.display = 'none';
@@ -417,8 +449,8 @@ function startGame() {
     whiteCapturedDiv.innerHTML = '';
     blackCapturedDiv.innerHTML = '';
     gameStatusDiv.textContent = '';
-    
-    gameModeIndicator.innerHTML = gameMode === 'engine' 
+
+    gameModeIndicator.innerHTML = gameMode === 'engine'
         ? `Mode: <span>Engine (${getEngineStrengthLabel()})</span>`
         : `Mode: <span>Multiplayer</span>`;
     gameModeIndicator.style.display = 'block';
@@ -426,7 +458,7 @@ function startGame() {
     updateFlipButtonState();
 
     initializeGame();
-    
+
     if (gameMode === 'engine' && playerColor === 'black') {
         setTimeout(() => {
             makeEngineMove();
@@ -435,7 +467,7 @@ function startGame() {
 }
 
 function getEngineStrengthLabel() {
-    switch(engineStrength) {
+    switch (engineStrength) {
         case 'easy': return 'Beginner';
         case 'medium': return 'Intermediate';
         case 'hard': return 'Advanced';
@@ -448,7 +480,7 @@ function completeReset() {
     while (boardContainer.children.length > 0) {
         boardContainer.remove(boardContainer.children[0]);
     }
-    
+
     squares.length = 0;
     pieces.length = 0;
 
@@ -459,7 +491,7 @@ function completeReset() {
     gameMode = '';
     engineStrength = 'medium';
     initialSetupComplete = false;
-    
+
     setupLighting();
 }
 
@@ -510,20 +542,20 @@ function updateFlipButtonState() {
     boardFlipped = false;
     const flipButton = document.getElementById('flip-board-button');
     if (flipButton) {
-      flipButton.classList.remove('flipped');
+        flipButton.classList.remove('flipped');
     }
-  }
+}
 
 function setupEventListeners() {
     window.addEventListener('resize', onWindowResize, false);
     window.addEventListener('mousedown', onMouseDown, false);
     window.addEventListener('touchstart', onTouchStart, false);
-    
+
     const flipBoardButton = document.getElementById('flip-board-button');
     if (flipBoardButton) {
-      flipBoardButton.addEventListener('click', flipBoard);
+        flipBoardButton.addEventListener('click', flipBoard);
     }
-  }
+}
 
 async function loadGameAssets() {
     try {
@@ -573,11 +605,11 @@ function setCameraPosition() {
 
 function setBoardRotation() {
     if (playerColor === 'black' && !boardFlipped || playerColor === 'white' && boardFlipped) {
-      boardContainer.rotation.y = Math.PI;
+        boardContainer.rotation.y = Math.PI;
     } else {
-      boardContainer.rotation.y = 0;
+        boardContainer.rotation.y = 0;
     }
-  }
+}
 
 function setupLighting() {
     scene.children.forEach(child => {
@@ -587,7 +619,7 @@ function setupLighting() {
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
     directionalLight.position.set(10, 15, 10);
     directionalLight.castShadow = true;
-    
+
     directionalLight.shadow.mapSize.width = 2048;
     directionalLight.shadow.mapSize.height = 2048;
     directionalLight.shadow.camera.near = 0.5;
@@ -623,7 +655,7 @@ function loadSounds() {
     loadingText.textContent = "Loading sound effects...";
     return new Promise((resolve) => {
         const soundPromises = [];
-        
+
         const soundFiles = {
             moveSound: 'assets/sounds/move.mp3',
             captureSound: 'assets/sounds/capture.mp3',
@@ -631,7 +663,7 @@ function loadSounds() {
             invalidSound: 'assets/sounds/invalid.mp3',
             castlingSound: 'assets/sounds/castling.mp3'
         };
-        
+
         for (const [soundName, soundPath] of Object.entries(soundFiles)) {
             const promise = new Promise((resolveSound) => {
                 audioLoader.load(
@@ -653,7 +685,7 @@ function loadSounds() {
             });
             soundPromises.push(promise);
         }
-        
+
         Promise.all(soundPromises)
             .then(() => {
                 console.log("Sound effects loaded");
@@ -671,19 +703,19 @@ function loadChessboard() {
     return new Promise((resolve) => {
         const boardGroup = new THREE.Group();
         const boardGeometry = new THREE.BoxGeometry(9, 0.2, 9);
-        
+
         const boardTexture = textureLoader.load('assets/textures/wood-frame.jpg', () => {
         });
         boardTexture.wrapS = boardTexture.wrapT = THREE.RepeatWrapping;
         boardTexture.repeat.set(1, 1);
-        
+
         const boardNormalMap = textureLoader.load('assets/textures/wood-normal.jpg');
         boardNormalMap.wrapS = boardNormalMap.wrapT = THREE.RepeatWrapping;
         boardNormalMap.repeat.set(1, 1);
-        
+
         const boardRoughnessMap = textureLoader.load('assets/textures/wood-roughness.jpg');
-        
-        const boardMaterial = new THREE.MeshStandardMaterial({ 
+
+        const boardMaterial = new THREE.MeshStandardMaterial({
             map: boardTexture,
             normalMap: boardNormalMap,
             normalScale: new THREE.Vector2(0.5, 0.5),
@@ -692,23 +724,23 @@ function loadChessboard() {
             metalness: 0.1,
             envMapIntensity: 0.8
         });
-        
+
         const board = new THREE.Mesh(boardGeometry, boardMaterial);
         board.receiveShadow = true;
         boardGroup.add(board);
-        
+
         const lightSquareTexture = textureLoader.load('assets/textures/marble-light.jpg');
         const darkSquareTexture = textureLoader.load('assets/textures/marble-dark.jpg');
-        
+
         const lightSquareNormal = textureLoader.load('assets/textures/marble-light-normal.jpg');
         const darkSquareNormal = textureLoader.load('assets/textures/marble-dark-normal.jpg');
-        
+
         for (let x = -3.5; x <= 3.5; x++) {
             for (let z = -3.5; z <= 3.5; z++) {
                 const isWhite = (Math.floor(x + 3.5) + Math.floor(z + 3.5)) % 2 === 0;
-                
+
                 const squareGeometry = new THREE.BoxGeometry(0.995, 0.1, 0.995);
-                
+
                 const squareMaterial = new THREE.MeshStandardMaterial({
                     map: isWhite ? lightSquareTexture : darkSquareTexture,
                     normalMap: isWhite ? lightSquareNormal : darkSquareNormal,
@@ -748,7 +780,7 @@ function loadChessboard() {
         const cornerLight1 = new THREE.PointLight(0xFFFFFF, edgeLightIntensity, 5);
         cornerLight1.position.set(4.5, 0.8, 4.5);
         boardGroup.add(cornerLight1);
-        
+
         const cornerLight2 = new THREE.PointLight(0xFFFFFF, edgeLightIntensity, 5);
         cornerLight2.position.set(-4.5, 0.8, -4.5);
         boardGroup.add(cornerLight2);
@@ -762,7 +794,7 @@ function applyPieceMaterial(model, color) {
     const baseTexture = textureLoader.load(`assets/textures/${color}-piece-base.jpg`);
     const normalMap = textureLoader.load(`assets/textures/${color}-piece-normal.jpg`);
     const roughnessMap = textureLoader.load(`assets/textures/${color}-piece-roughness.jpg`);
-    
+
     model.traverse((child) => {
         if (child.isMesh && child.material) {
             if (Array.isArray(child.material)) {
@@ -781,13 +813,13 @@ function configureMaterial(material, color, baseTexture, normalMap, roughnessMap
     material.normalMap = normalMap;
     material.normalScale = new THREE.Vector2(0.7, 0.7);
     material.roughnessMap = roughnessMap;
-    
+
     if (color === 'white') {
         material.roughness = 0.2;
-        material.metalness = 0.1;  
-        material.clearcoat = 1.0;       
+        material.metalness = 0.1;
+        material.clearcoat = 1.0;
         material.clearcoatRoughness = 0.1;
-        material.envMapIntensity = 1.5;    
+        material.envMapIntensity = 1.5;
     } else {
         material.roughness = 0.2;
         material.metalness = 0.2;
@@ -795,7 +827,7 @@ function configureMaterial(material, color, baseTexture, normalMap, roughnessMap
         material.clearcoatRoughness = 0.1;
         material.envMapIntensity = 1.2;
     }
-    
+
     material.emissive = new THREE.Color(color === 'white' ? 0x333333 : 0x222222);
     material.emissiveIntensity = 0.03;
 }
@@ -814,23 +846,23 @@ function createPiece(type, color, position) {
 
                 applyPieceMaterial(model, color);
 
-                model.scale.set(0.85, 0.85, 0.85);
+                model.scale.set(0.95, 0.95, 0.95);
                 model.position.set(position.x, yPosition, position.z);
 
                 if (type === 'knight' && color === 'white') {
-                    model.rotation.y = Math.PI; 
+                    model.rotation.y = Math.PI;
                 }
                 if (type === 'bishop' && color === 'white') {
-                    model.rotation.y = Math.PI; 
+                    model.rotation.y = Math.PI;
                 }
                 if (type === 'king') {
                     model.rotation.y = Math.PI / 2;
                 }
 
                 model.userData = {
-                    type, 
+                    type,
                     color,
-                    originalY: yPosition, 
+                    originalY: yPosition,
                     position: { x: position.x, z: position.z },
                     name: `${color} ${type} ${getSquareName(position)}`,
                     hasMoved: false
@@ -941,11 +973,11 @@ function highlightValidMoves(piece) {
                 mat.emissive = CAPTURE_COLOR.clone();
                 mat.emissiveIntensity = HIGHLIGHT_INTENSITY;
                 console.log(`Highlighting capture move to ${square.userData.name} where ${targetPiece.userData.name} is located`);
-            } else if (piece.userData.type === 'pawn' && 
-                       square.position.x !== piece.userData.position.x && 
-                       enPassantTarget && 
-                       Math.abs(enPassantTarget.x - square.position.x) < 0.1 &&
-                       Math.abs(enPassantTarget.z - square.position.z) < 0.1) {
+            } else if (piece.userData.type === 'pawn' &&
+                square.position.x !== piece.userData.position.x &&
+                enPassantTarget &&
+                Math.abs(enPassantTarget.x - square.position.x) < 0.1 &&
+                Math.abs(enPassantTarget.z - square.position.z) < 0.1) {
                 mat.emissive = EN_PASSANT_COLOR.clone();
                 mat.emissiveIntensity = HIGHLIGHT_INTENSITY;
             } else {
@@ -962,61 +994,61 @@ function highlightValidMoves(piece) {
 
 function isValidCastling(king, targetPos) {
     if (king.userData.type !== 'king' || king.userData.hasMoved) return false;
-    
+
     const kingPos = king.userData.position;
     const dx = targetPos.x - kingPos.x;
-    
+
     if (Math.abs(dx) !== 2 || targetPos.z !== kingPos.z) return false;
-    
+
     const color = king.userData.color;
     const startingRow = color === 'white' ? 3.5 : -3.5;
-    
+
     if (kingPos.z !== startingRow || kingPos.x !== 0.5) return false;
-    
+
     if (isKingInCheck(color)) return false;
-    
+
     const isKingside = targetPos.x > kingPos.x;
     const rookX = isKingside ? 3.5 : -3.5;
-    
-    const rook = pieces.find(piece => 
-        piece.userData.type === 'rook' && 
-        piece.userData.color === color && 
-        Math.abs(piece.userData.position.x - rookX) < 0.1 && 
+
+    const rook = pieces.find(piece =>
+        piece.userData.type === 'rook' &&
+        piece.userData.color === color &&
+        Math.abs(piece.userData.position.x - rookX) < 0.1 &&
         Math.abs(piece.userData.position.z - startingRow) < 0.1 &&
         !piece.userData.hasMoved
     );
-    
+
     if (!rook) {
         return false;
     }
-    
+
     const direction = isKingside ? 1 : -1;
     const distance = isKingside ? 2 : 3;
-    
+
     for (let i = 1; i <= distance; i++) {
         const tempPos = {
             x: kingPos.x + (i * direction),
             z: startingRow
         };
-        
+
         if (getPieceAtPosition(tempPos)) {
             return false;
         }
-        
+
         if (i <= 2) {
             const originalPos = { ...kingPos };
             king.userData.position = { x: tempPos.x, z: tempPos.z };
-            
+
             const wouldBeCheck = isKingInCheck(color);
-            
+
             king.userData.position = originalPos;
-            
+
             if (wouldBeCheck) {
                 return false;
             }
         }
     }
-    
+
     return true;
 }
 
@@ -1082,12 +1114,12 @@ function resetKingHighlight(color) {
         mat.emissiveIntensity = kingSquare.userData.originalEmissiveIntensity;
         mat.needsUpdate = true;
     }
-    
+
     if (king.userData.floatAnimation) {
         delete king.userData.floatAnimation;
         king.position.y = king.userData.originalY || 0.25;
     }
-    
+
     if (selectedPiece === king) {
         selectedPiece = null;
     }
@@ -1102,18 +1134,18 @@ function movePiece(piece, targetPos) {
     const toSquare = getSquareName(targetPos);
 
     console.log(`Moving ${piece.userData.name} from ${fromSquare} to ${toSquare}`);
-    
+
     let captureOccurred = false;
     let capturedType = null;
     let capturedPiece = null;
-    
+
     const targetPiece = getPieceAtPosition(targetPos);
     if (targetPiece) {
         if (targetPiece.userData.color === piece.userData.color) {
             console.log(`Cannot capture own piece ${targetPiece.userData.name}`);
             return;
         }
-        
+
         console.log(`CAPTURE: ${piece.userData.name} captures ${targetPiece.userData.name} at ${toSquare}`);
         captureOccurred = true;
         capturedType = targetPiece.userData.type;
@@ -1131,7 +1163,7 @@ function movePiece(piece, targetPos) {
             console.warn(`Failed to find captured piece ${targetPiece.userData.name} in pieces array`);
         }
     }
-    
+
     const isCastling = piece.userData.type === 'king' && Math.abs(targetPos.x - currentPos.x) === 2;
     if (isCastling) {
         if (handleCastling(piece, targetPos)) {
@@ -1140,10 +1172,10 @@ function movePiece(piece, targetPos) {
             return;
         }
     }
-    
+
     let isEnPassantCapture = false;
-    if (piece.userData.type === 'pawn' && 
-        currentPos.x !== targetPos.x && 
+    if (piece.userData.type === 'pawn' &&
+        currentPos.x !== targetPos.x &&
         !getPieceAtPosition(targetPos)) {
         isEnPassantCapture = handleEnPassantCapture(piece, targetPos);
         if (isEnPassantCapture) {
@@ -1154,16 +1186,16 @@ function movePiece(piece, targetPos) {
 
     const prevEnPassantTarget = enPassantTarget;
     enPassantTarget = null;
-    
+
     if (piece.userData.type === 'pawn') {
         const direction = piece.userData.color === 'white' ? -1 : 1;
         const initialZ = piece.userData.color === 'white' ? 2.5 : -2.5;
-        
-        if (Math.abs(currentPos.z - initialZ) < 0.1 && 
+
+        if (Math.abs(currentPos.z - initialZ) < 0.1 &&
             Math.abs(targetPos.z - currentPos.z) === 2) {
-            enPassantTarget = { 
-                x: targetPos.x, 
-                z: targetPos.z - direction 
+            enPassantTarget = {
+                x: targetPos.x,
+                z: targetPos.z - direction
             };
             lastMovedPawn = piece;
         }
@@ -1195,9 +1227,9 @@ function movePiece(piece, targetPos) {
     if (!isCastling) {
         recordMove(piece, fromSquare, toSquare, captureOccurred, capturedType, isEnPassantCapture);
     }
-    
+
     deselectPiece();
-    
+
     const oppositeColor = currentTurn === 'white' ? 'black' : 'white';
 
     if (inCheck) {
@@ -1215,7 +1247,7 @@ function movePiece(piece, targetPos) {
     if (inCheck) {
         console.log(`${oppositeColor} is in check!`);
         highlightKingInCheck(oppositeColor);
-        
+
         if (sounds.checkSound && sounds.checkSound.buffer) {
             sounds.checkSound.play();
         }
@@ -1252,32 +1284,32 @@ function movePiece(piece, targetPos) {
 function executeCastling(king, targetPos) {
     const color = king.userData.color;
     const startingRow = color === 'white' ? 3.5 : -3.5;
-    
+
     if (!isValidCastling(king, targetPos)) return false;
-    
+
     const isKingside = targetPos.x > king.userData.position.x;
     const rookX = isKingside ? 3.5 : -3.5;
-    
-    const rook = pieces.find(piece => 
-        piece.userData.type === 'rook' && 
-        piece.userData.color === color && 
-        Math.abs(piece.userData.position.x - rookX) < 0.1 && 
+
+    const rook = pieces.find(piece =>
+        piece.userData.type === 'rook' &&
+        piece.userData.color === color &&
+        Math.abs(piece.userData.position.x - rookX) < 0.1 &&
         Math.abs(piece.userData.position.z - startingRow) < 0.1 &&
         !piece.userData.hasMoved
     );
-    
+
     if (!rook) return false;
-    
+
     const kingNewX = isKingside ? 2.5 : -1.5;
     const rookNewX = isKingside ? 1.5 : -0.5;
-    
+
     rook.userData.position = { x: rookNewX, z: startingRow };
     rook.userData.hasMoved = true;
     rook.userData.name = `${rook.userData.color} rook ${getSquareName({ x: rookNewX, z: startingRow })}`;
-    
+
     const notation = isKingside ? "O-O" : "O-O-O";
     recordSpecialMove(notation, color);
-    
+
     animationState = {
         piece: rook,
         startPos: new THREE.Vector3(rook.position.x, rook.position.y, rook.position.z),
@@ -1288,44 +1320,44 @@ function executeCastling(king, targetPos) {
         captureOccurred: false,
         isCastling: true
     };
-    
+
     console.log(`Completed castling: ${notation} for ${color}`);
     return true;
 }
 
 function makeEngineMove() {
     if (!gameActive || currentTurn === playerColor) return;
-    
+
     console.log("Engine is thinking...");
-    
+
     gameStatusDiv.textContent = "Engine is thinking...";
     gameStatusDiv.style.color = '#3498db';
-    
+
     let searchDepth = 10;
-    switch(engineStrength) {
+    switch (engineStrength) {
         case 'easy': searchDepth = 5; break;
         case 'medium': searchDepth = 10; break;
         case 'hard': searchDepth = 15; break;
         case 'expert': searchDepth = 20; break;
     }
-    
+
     const fen = boardToFEN();
     console.log("Current position (FEN):", fen);
-    
+
     if (stockfishEngine) {
         stockfishEngine.postMessage('position fen ' + fen);
-        
+
         stockfishEngine.postMessage('go depth ' + searchDepth);
     } else {
         const possibleMoves = getAllPossibleMoves(currentTurn);
         console.log(`Engine found ${possibleMoves.length} possible moves`);
-        
+
         const captureMoves = possibleMoves.filter(move => move.isCapture);
-        
+
         if (captureMoves.length > 0 && Math.random() > 0.3) {
             const captureMove = captureMoves[Math.floor(Math.random() * captureMoves.length)];
             console.log(`Engine choosing capture move: ${captureMove.piece.userData.name} captures at ${getSquareName(captureMove.targetPos)}`);
-            
+
             setTimeout(() => {
                 gameStatusDiv.textContent = '';
                 movePiece(captureMove.piece, captureMove.targetPos);
@@ -1333,7 +1365,7 @@ function makeEngineMove() {
         } else if (possibleMoves.length > 0) {
             const randomMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
             console.log(`Engine choosing random move: ${randomMove.piece.userData.name} to ${getSquareName(randomMove.targetPos)}`);
-            
+
             setTimeout(() => {
                 gameStatusDiv.textContent = '';
                 movePiece(randomMove.piece, randomMove.targetPos);
@@ -1358,13 +1390,13 @@ function recordMove(piece, fromSquare, toSquare, captureOccurred, capturedType, 
 
     if (captureOccurred) {
         if (pieceType === 'pawn') {
-            moveText += fromSquare.charAt(0); 
+            moveText += fromSquare.charAt(0);
         }
         moveText += 'x';
     }
 
     moveText += toSquare;
-    
+
     if (isEnPassantCapture) {
         moveText += ' e.p.';
     }
@@ -1449,7 +1481,7 @@ function promotePawn(pawn) {
     const position = { ...pawn.userData.position };
 
     boardContainer.remove(pawn);
-    
+
     const index = pieces.indexOf(pawn);
     if (index > -1) {
         pieces.splice(index, 1);
@@ -1480,7 +1512,7 @@ function recordSpecialMove(notation, color) {
             moveCount++;
         }
     }
-    
+
     movesContainer.scrollTop = movesContainer.scrollHeight;
 }
 
@@ -1529,12 +1561,12 @@ function isValidPawnMove(piece, currentPos, targetPos, dx, dz, targetPiece) {
             tempPos.z = currentPos.z + direction;
             return !getPieceAtPosition(tempPos) && !targetPiece;
         }
-    } 
+    }
     else if (Math.abs(dx) === 1 && dz === direction) {
         if (targetPiece && targetPiece.userData.color !== color) return true;
-        
-        if (enPassantTarget && 
-            Math.abs(enPassantTarget.x - targetPos.x) < 0.1 && 
+
+        if (enPassantTarget &&
+            Math.abs(enPassantTarget.x - targetPos.x) < 0.1 &&
             Math.abs(enPassantTarget.z - targetPos.z) < 0.1) {
             return true;
         }
@@ -1567,7 +1599,7 @@ function isPathClear(currentPos, targetPos) {
     const dz = targetPos.z - currentPos.z;
     const steps = Math.max(Math.abs(dx), Math.abs(dz));
 
-    if (steps <= 1) return true; 
+    if (steps <= 1) return true;
 
     const stepX = dx / steps;
     const stepZ = dz / steps;
@@ -1575,7 +1607,7 @@ function isPathClear(currentPos, targetPos) {
     for (let i = 1; i < steps; i++) {
         tempPos.x = currentPos.x + stepX * i;
         tempPos.z = currentPos.z + stepZ * i;
-        
+
         const pieceAtPos = getPieceAtPosition(tempPos);
         if (pieceAtPos) {
             console.log(`Path blocked at ${getSquareName(tempPos)} by ${pieceAtPos.userData.name}`);
@@ -1587,66 +1619,66 @@ function isPathClear(currentPos, targetPos) {
 
 function handleCastling(king, targetPos) {
     if (king.userData.hasMoved) return false;
-    
+
     const color = king.userData.color;
     const startingRow = color === 'white' ? 3.5 : -3.5;
-    
+
     if (king.userData.position.z !== startingRow || king.userData.position.x !== 0.5) return false;
-    
+
     if (isKingInCheck(color)) return false;
-    
+
     const isKingside = targetPos.x > king.userData.position.x;
     const rookX = isKingside ? 3.5 : -3.5;
-    
-    const rook = pieces.find(piece => 
-        piece.userData.type === 'rook' && 
-        piece.userData.color === color && 
-        Math.abs(piece.userData.position.x - rookX) < 0.1 && 
+
+    const rook = pieces.find(piece =>
+        piece.userData.type === 'rook' &&
+        piece.userData.color === color &&
+        Math.abs(piece.userData.position.x - rookX) < 0.1 &&
         Math.abs(piece.userData.position.z - startingRow) < 0.1 &&
         !piece.userData.hasMoved
     );
-    
+
     if (!rook) {
         console.log(`No eligible rook found for ${color} ${isKingside ? 'kingside' : 'queenside'} castling`);
         return false;
     }
-    
+
     const direction = isKingside ? 1 : -1;
     const distance = isKingside ? 2 : 3;
-    
+
     for (let i = 1; i <= distance; i++) {
         tempPos.x = king.userData.position.x + (i * direction);
         tempPos.z = startingRow;
-        
+
         if (getPieceAtPosition(tempPos)) {
             console.log(`Castling path blocked at ${getSquareName(tempPos)}`);
             return false;
         }
-        
+
         if (i <= 2) {
             const originalPos = { ...king.userData.position };
             king.userData.position = { x: tempPos.x, z: tempPos.z };
-            
+
             const wouldBeCheck = isKingInCheck(color);
-            
+
             king.userData.position = originalPos;
-            
+
             if (wouldBeCheck) {
                 console.log(`Castling not allowed through check at ${getSquareName(tempPos)}`);
                 return false;
             }
         }
     }
-    
+
     const kingNewX = isKingside ? 2.5 : -1.5;
     const rookNewX = isKingside ? 1.5 : -0.5;
-    
+
     rook.userData.position = { x: rookNewX, z: startingRow };
     rook.userData.hasMoved = true;
-    
+
     const notation = isKingside ? "O-O" : "O-O-O";
     recordSpecialMove(notation, color);
-    
+
     animationState = {
         piece: rook,
         startPos: new THREE.Vector3(rook.position.x, rook.position.y, rook.position.z),
@@ -1657,49 +1689,49 @@ function handleCastling(king, targetPos) {
         captureOccurred: false,
         isCastling: true
     };
-    
+
     return true;
 }
 
 function canCastleTo(king, targetPos) {
     if (king.userData.type !== 'king' || king.userData.hasMoved) return false;
-    
+
     const kingPos = king.userData.position;
     const dx = targetPos.x - kingPos.x;
-    
+
     if (Math.abs(dx) !== 2 || targetPos.z !== kingPos.z) return false;
-    
+
     return handleCastling(king, targetPos);
 }
 
 function handleEnPassantCapture(piece, targetPos) {
     if (!enPassantTarget) return false;
-    
-    if (Math.abs(enPassantTarget.x - targetPos.x) < 0.1 && 
+
+    if (Math.abs(enPassantTarget.x - targetPos.x) < 0.1 &&
         Math.abs(enPassantTarget.z - targetPos.z) < 0.1) {
-        
-        const capturedPawnPos = { 
-            x: targetPos.x, 
-            z: piece.userData.position.z 
+
+        const capturedPawnPos = {
+            x: targetPos.x,
+            z: piece.userData.position.z
         };
-        
+
         const capturedPawn = getPieceAtPosition(capturedPawnPos);
         if (capturedPawn && capturedPawn.userData.type === 'pawn') {
             console.log(`En passant capture at ${getSquareName(targetPos)}, removing ${capturedPawn.userData.name}`);
-            
+
             capturedPieces[capturedPawn.userData.color].push(capturedPawn.userData.type);
             updateCapturedPiecesDisplay();
-            
+
             boardContainer.remove(capturedPawn);
             const index = pieces.indexOf(capturedPawn);
             if (index > -1) {
                 pieces.splice(index, 1);
             }
-            
+
             return true;
         }
     }
-    
+
     return false;
 }
 
@@ -1755,15 +1787,15 @@ function wouldBeInCheck(piece, targetPos) {
     }
 
     piece.userData.position = { x: targetPos.x, z: targetPos.z };
-    
+
     result = isKingInCheck(piece.userData.color);
-    
+
     piece.userData.position = originalPos;
 
     if (targetPiece && targetPieceIndex !== -1) {
         pieces.splice(targetPieceIndex, 0, targetPiece);
     }
-    
+
     return result;
 }
 
@@ -1783,7 +1815,7 @@ function checkForStalemate(color) {
 
 function getPieceAtPosition(position) {
     const threshold = 0.2;
-    
+
     for (let i = pieces.length - 1; i >= 0; i--) {
         const piece = pieces[i];
         if (Math.abs(piece.userData.position.x - position.x) < threshold &&
@@ -1796,7 +1828,7 @@ function getPieceAtPosition(position) {
 
 function getSquareAtPosition(position) {
     const threshold = 0.15;
-    
+
     for (let i = 0; i < squares.length; i++) {
         const square = squares[i];
         if (Math.abs(square.position.x - position.x) < threshold &&
@@ -1819,19 +1851,19 @@ function getSquareName(position) {
 
 function getAllPossibleMoves(color) {
     const possibleMoves = [];
-    
+
     for (const piece of pieces) {
         if (piece.userData.color !== color) continue;
-        
+
         console.log(`Considering moves for ${piece.userData.name}`);
-        
+
         for (const square of squares) {
             if (isValidMove(piece, square.position)) {
                 const targetPiece = getPieceAtPosition(square.position);
                 if (targetPiece) {
                     console.log(`Found valid capture move: ${piece.userData.name} can capture ${targetPiece.userData.name} at ${square.userData.name}`);
                 }
-                
+
                 possibleMoves.push({
                     piece: piece,
                     targetPos: square.position,
@@ -1842,10 +1874,10 @@ function getAllPossibleMoves(color) {
             }
         }
     }
-    
+
     console.log(`Found ${possibleMoves.length} legal moves for ${color}`);
     console.log(`Capture moves: ${possibleMoves.filter(m => m.isCapture).length}`);
-    
+
     return possibleMoves;
 }
 
@@ -1901,15 +1933,17 @@ let lastTime = 0;
 function gameLoop(timestamp) {
     const deltaTime = (timestamp - lastTime) / 1000;
     lastTime = timestamp;
-
+  
     requestAnimationFrame(gameLoop);
-
+  
     updateAnimations(deltaTime);
-
+    
+    updateFlipAnimation(deltaTime);
+  
     controls.update();
-
+  
     renderer.render(scene, camera);
-}
+  }
 
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -1918,7 +1952,7 @@ function onWindowResize() {
 }
 
 function onMouseDown(event) {
-    if (animationState) return; 
+    if (animationState) return;
 
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -1948,7 +1982,7 @@ function checkInteraction() {
     const pieceIntersects = raycaster.intersectObjects(pieces, true);
     if (pieceIntersects.length > 0) {
         let pieceParent = pieceIntersects[0].object;
-        
+
         while (pieceParent.parent && !pieceParent.userData.type) {
             pieceParent = pieceParent.parent;
         }
@@ -1966,16 +2000,16 @@ function checkInteraction() {
                 }
                 return;
             }
-            
+
             if (gameMode === 'engine' && pieceParent.userData.color !== playerColor) {
                 return;
             }
-            
+
             selectPiece(pieceParent);
             return;
         }
     }
-    
+
     const squareIntersects = raycaster.intersectObjects(squares, false);
     if (squareIntersects.length > 0) {
         const square = squareIntersects[0].object;
