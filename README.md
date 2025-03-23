@@ -1,6 +1,6 @@
 # **Checkmate 3D**
 ## **Overview**
-Checkmate 3D is an immersive 3D chess game built using Three.js. It features a fully interactive chessboard with realistic pieces, advanced chess rules, multiple game modes, and smooth animations. Play against a friend in multiplayer mode or challenge the AI at different difficulty levels.
+- **Checkmate 3D is an immersive 3D chess game built using Three.js. It features a fully interactive chessboard with realistic pieces, advanced chess rules, multiple game modes, and smooth animations. Play against a friend in multiplayer mode or challenge the AI at different difficulty levels.
 ---
 ## **Features**
 - **Game Modes**:
