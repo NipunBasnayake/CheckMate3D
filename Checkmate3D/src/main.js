@@ -52,10 +52,8 @@ const capturedPieces = { white: [], black: [] };
 
 let stockfishEngine = null;
 
-// Utility function to play sounds properly
 function playSound(sound) {
     if (sound && sound.buffer) {
-        // Clone the sound to allow multiple instances to play simultaneously
         const soundInstance = sound.clone();
         soundInstance.setVolume(sound.getVolume());
         soundInstance.play();
