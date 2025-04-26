@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { update } from 'three/examples/jsm/libs/tween.module.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -52,10 +51,8 @@ const capturedPieces = { white: [], black: [] };
 
 let stockfishEngine = null;
 
-// Utility function to play sounds properly
 function playSound(sound) {
     if (sound && sound.buffer) {
-        // Clone the sound to allow multiple instances to play simultaneously
         const soundInstance = sound.clone();
         soundInstance.setVolume(sound.getVolume());
         soundInstance.play();
